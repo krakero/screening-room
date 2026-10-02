@@ -1,0 +1,239 @@
+@import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../vendor/livewire/flux/stubs/**/*.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f5f5f5;
+    --color-zinc-200: #e5e5e5;
+    --color-zinc-300: #d4d4d4;
+    --color-zinc-400: #a3a3a3;
+    --color-zinc-500: #737373;
+    --color-zinc-600: #525252;
+    --color-zinc-700: #404040;
+    --color-zinc-800: #262626;
+    --color-zinc-900: #171717;
+    --color-zinc-950: #0a0a0a;
+
+    /* Surfaces & text. Light values are the defaults; dark overrides live under .dark below. */
+    --color-canvas: #ffffff;
+    --color-surface: #f6f6f7;
+    --color-surface-raised: #ffffff;
+    --color-line: #e4e4e7;
+    --color-ink: #18181b;
+    --color-ink-muted: #52525b;
+    --color-ink-subtle: #a1a1aa;
+
+    /* Placeholder accent (amber) until the user picks one from the mockups. Never hardcode a color elsewhere; use these tokens. */
+    --color-accent: #e5a00d;
+    --color-accent-content: #e5a00d;
+    --color-accent-foreground: #1c1207;
+
+    /* Status tokens: availability/request/download/watch state on posters and badges. */
+    --color-status-available: #16a34a;
+    --color-status-requested: #7c3aed;
+    --color-status-pending: #d97706;
+    --color-status-downloading: #0284c7;
+    --color-status-watched: var(--color-accent);
+    --color-status-abandoned: #71717a;
+    --color-status-paused: #64748b;
+
+    /* Plex brand yellow — fixed, independent of the user's chosen accent color. Used only to
+       indicate "available to play on Plex". */
+    --color-plex: #e5a00d;
+    --color-plex-foreground: #1c1207;
+}
+
+@layer theme {
+    .dark {
+        --color-canvas: #0b0b0f;
+        --color-surface: #131318;
+        --color-surface-raised: #1c1c24;
+        --color-line: #27272f;
+        --color-ink: #f4f4f5;
+        --color-ink-muted: #a1a1aa;
+        --color-ink-subtle: #71717a;
+
+        --color-accent: #e5a00d;
+        --color-accent-content: #e5a00d;
+        --color-accent-foreground: #1c1207;
+
+        --color-status-available: #22c55e;
+        --color-status-requested: #a78bfa;
+        --color-status-pending: #fbbf24;
+        --color-status-downloading: #38bdf8;
+        --color-status-watched: var(--color-accent);
+        --color-status-abandoned: #a1a1aa;
+        --color-status-paused: #94a3b8;
+
+        --color-plex: #e5a00d;
+        --color-plex-foreground: #1c1207;
+    }
+
+    /*
+     * Accent presets (Settings > Appearance). `data-accent` lives on <html>, set server-side
+     * from the user's saved preference (app/Support/AccentColor.php is the single source of
+     * truth for these values) and mirrored instantly on click via the accent-picker's @script.
+     * :root[data-accent="…"] outranks .dark on specificity, so these win in both themes;
+     * a custom hex color is emitted as a <style> block (see layouts/app/nav.blade.php) with its
+     * own :root/:root.dark rules instead, so it follows the same cascade as the presets below.
+     *
+     * A few presets (crimson/rose/violet/indigo/blue) read as plain text against the canvas
+     * (text-accent/text-accent-content) in dozens of places, and their base shade falls below
+     * WCAG AA against the near-black dark canvas — :root.dark[data-accent="…"] below swaps in a
+     * lighter tint + a recomputed foreground for those five in dark mode only. It outranks the
+     * plain :root[data-accent="…"] rule (an extra class in the selector), so source order doesn't
+     * matter, same as .dark vs :root today.
+     */
+    :root[data-accent='orange'] {
+        --color-accent: #ea580c;
+        --color-accent-content: #ea580c;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root[data-accent='crimson'] {
+        --color-accent: #dc2626;
+        --color-accent-content: #dc2626;
+        --color-accent-foreground: #ffffff;
+    }
+
+    :root[data-accent='rose'] {
+        --color-accent: #e11d48;
+        --color-accent-content: #e11d48;
+        --color-accent-foreground: #ffffff;
+    }
+
+    :root[data-accent='violet'] {
+        --color-accent: #7c3aed;
+        --color-accent-content: #7c3aed;
+        --color-accent-foreground: #ffffff;
+    }
+
+    :root[data-accent='indigo'] {
+        --color-accent: #4f46e5;
+        --color-accent-content: #4f46e5;
+        --color-accent-foreground: #ffffff;
+    }
+
+    :root[data-accent='blue'] {
+        --color-accent: #2563eb;
+        --color-accent-content: #2563eb;
+        --color-accent-foreground: #ffffff;
+    }
+
+    :root[data-accent='sky'] {
+        --color-accent: #0284c7;
+        --color-accent-content: #0284c7;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root[data-accent='teal'] {
+        --color-accent: #0d9488;
+        --color-accent-content: #0d9488;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root[data-accent='emerald'] {
+        --color-accent: #059669;
+        --color-accent-content: #059669;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root[data-accent='lime'] {
+        --color-accent: #65a30d;
+        --color-accent-content: #65a30d;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root.dark[data-accent='crimson'] {
+        --color-accent: #f87171;
+        --color-accent-content: #f87171;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root.dark[data-accent='rose'] {
+        --color-accent: #fb7185;
+        --color-accent-content: #fb7185;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root.dark[data-accent='violet'] {
+        --color-accent: #a78bfa;
+        --color-accent-content: #a78bfa;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root.dark[data-accent='indigo'] {
+        --color-accent: #818cf8;
+        --color-accent-content: #818cf8;
+        --color-accent-foreground: #0a0a0a;
+    }
+
+    :root.dark[data-accent='blue'] {
+        --color-accent: #60a5fa;
+        --color-accent-content: #60a5fa;
+        --color-accent-foreground: #0a0a0a;
+    }
+}
+
+@layer base {
+
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+[data-flux-field]:not(ui-radio, ui-checkbox) {
+    @apply grid gap-2;
+}
+
+[data-flux-label] {
+    @apply  !mb-0 !leading-tight;
+}
+
+input:focus[data-flux-control],
+textarea:focus[data-flux-control],
+select:focus[data-flux-control] {
+    @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
+}
+
+/* \[:where(&)\]:size-4 {
+    @apply size-4;
+} */
+
+/* Scrollbar stays invisible until the element is actively scrolling (toggled via data-scrolling). */
+@utility scrollbar-autohide {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 200ms;
+
+    &[data-scrolling] {
+        scrollbar-color: var(--color-ink-subtle) transparent;
+    }
+}
+
+/* Repeated per-card classes, kept short so large grids (lists, discover) ship less HTML. */
+@layer components {
+    .media-ring {
+        @apply pointer-events-none absolute inset-0 z-30 rounded-lg ring-1 ring-inset ring-line transition duration-200 group-hover:ring-2 group-hover:ring-accent group-focus-within:ring-2 group-focus-within:ring-accent;
+    }
+
+    .list-item-control {
+        @apply absolute top-2 flex size-7 items-center justify-center rounded-full bg-surface/90 ring-1 ring-line opacity-0 transition group-hover/item:opacity-100;
+    }
+}

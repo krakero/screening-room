@@ -1,0 +1,7 @@
+name: screening-room
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile

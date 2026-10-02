@@ -1,0 +1,34 @@
+{
+  "MediaContainer": {
+    "size": 3,
+    "Metadata": [
+      {
+        "ratingKey": "901",
+        "key": "/library/metadata/901",
+        "type": "episode",
+        "title": "Pilot",
+        "grandparentRatingKey": "800",
+        "parentIndex": 1,
+        "index": 1
+      },
+      {
+        "ratingKey": "902",
+        "key": "/library/metadata/902",
+        "type": "episode",
+        "title": "Episode Two",
+        "grandparentRatingKey": "800",
+        "parentIndex": 1,
+        "index": 2
+      },
+      {
+        "ratingKey": "903",
+        "key": "/library/metadata/903",
+        "type": "episode",
+        "title": "Episode One",
+        "grandparentRatingKey": "800",
+        "parentIndex": 2,
+        "index": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "Metadata": [
+      {
+        "historyKey": "/status/sessions/history/all?filter=viewedAt%3E%3D0",
+        "ratingKey": "501",
+        "key": "/library/metadata/501",
+        "type": "movie",
+        "title": "The Matrix",
+        "viewedAt": 1758000000,
+        "accountID": 1
+      },
+      {
+        "historyKey": "/status/sessions/history/all?filter=viewedAt%3E%3D0",
+        "ratingKey": "901",
+        "key": "/library/metadata/901",
+        "parentKey": "/library/metadata/900",
+        "grandparentKey": "/library/metadata/800",
+        "grandparentRatingKey": "800",
+        "type": "episode",
+        "title": "Winter Is Coming",
+        "grandparentTitle": "Game of Thrones",
+        "parentIndex": 1,
+        "index": 1,
+        "viewedAt": 1758000500,
+        "accountID": 1
+      }
+    ]
+  }
+}

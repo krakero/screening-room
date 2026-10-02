@@ -1,0 +1,15 @@
+* text=auto eol=lf
+
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+CHANGELOG.md export-ignore
+README.md export-ignore
+.github/workflows/browser-tests.yml export-ignore
+
+# Ensure shell scripts and docker configs always use LF line endings
+*.sh text eol=lf
+docker/* text eol=lf

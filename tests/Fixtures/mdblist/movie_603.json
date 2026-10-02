@@ -1,0 +1,19 @@
+{
+    "id": 603,
+    "imdb_id": "tt0133093",
+    "title": "The Matrix",
+    "year": 1999,
+    "type": "movie",
+    "score": 87,
+    "score_average": 85,
+    "ratings": [
+        {"source": "imdb", "value": 8.7, "votes": 2100000},
+        {"source": "tmdb", "value": 8.2, "votes": 24000},
+        {"source": "trakt", "value": 87, "votes": 145000},
+        {"source": "letterboxd", "value": 4.1, "votes": 1600000, "url": "https://letterboxd.com/film/the-matrix/"},
+        {"source": "tomatoes", "value": 83, "url": "https://www.rottentomatoes.com/m/matrix"},
+        {"source": "tomatoesaudience", "value": 85},
+        {"source": "metacritic", "value": 73},
+        {"source": "metacriticuser", "value": 8.7}
+    ]
+}

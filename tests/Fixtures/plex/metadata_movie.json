@@ -1,0 +1,20 @@
+{
+  "MediaContainer": {
+    "size": 1,
+    "Metadata": [
+      {
+        "ratingKey": "501",
+        "key": "/library/metadata/501",
+        "guid": "plex://movie/5d776b59880197001ec967c6",
+        "type": "movie",
+        "title": "The Matrix",
+        "year": 1999,
+        "Guid": [
+          {"id": "tmdb://603"},
+          {"id": "imdb://tt0133093"},
+          {"id": "tvdb://169"}
+        ]
+      }
+    ]
+  }
+}

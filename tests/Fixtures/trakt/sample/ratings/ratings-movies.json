@@ -1,0 +1,22 @@
+[
+    {
+        "rated_at": "2024-01-10T00:00:00.000Z",
+        "rating": 9,
+        "type": "movie",
+        "movie": {
+            "title": "Test Movie One",
+            "year": 2020,
+            "ids": {"trakt": 91001, "slug": "test-movie-one-2020", "imdb": "tt9910001", "tmdb": 1001}
+        }
+    },
+    {
+        "rated_at": "2024-01-11T00:00:00.000Z",
+        "rating": 3,
+        "type": "movie",
+        "movie": {
+            "title": "Test Movie Missing On TMDB",
+            "year": 2022,
+            "ids": {"trakt": 91003, "slug": "test-movie-missing-2022", "imdb": "tt9910002", "tmdb": 1002}
+        }
+    }
+]

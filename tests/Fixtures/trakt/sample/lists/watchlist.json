@@ -1,0 +1,26 @@
+[
+    {
+        "rank": 1,
+        "id": 1000001,
+        "listed_at": "2024-01-20T00:00:00.000Z",
+        "notes": null,
+        "type": "movie",
+        "movie": {
+            "title": "Test Movie One",
+            "year": 2020,
+            "ids": {"trakt": 91001, "slug": "test-movie-one-2020", "imdb": "tt9910001", "tmdb": 1001}
+        }
+    },
+    {
+        "rank": 2,
+        "id": 1000002,
+        "listed_at": "2024-01-21T00:00:00.000Z",
+        "notes": null,
+        "type": "movie",
+        "movie": {
+            "title": "Test Movie Three",
+            "year": 2023,
+            "ids": {"trakt": 91004, "slug": "test-movie-three-2023", "imdb": "tt9910003", "tmdb": 1003}
+        }
+    }
+]

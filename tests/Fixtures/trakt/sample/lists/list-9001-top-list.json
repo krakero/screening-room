@@ -1,0 +1,26 @@
+[
+    {
+        "rank": 1,
+        "id": 2000001,
+        "listed_at": "2024-01-02T00:00:00.000Z",
+        "notes": null,
+        "type": "movie",
+        "movie": {
+            "title": "Test Movie One",
+            "year": 2020,
+            "ids": {"trakt": 91001, "slug": "test-movie-one-2020", "imdb": "tt9910001", "tmdb": 1001}
+        }
+    },
+    {
+        "rank": 2,
+        "id": 2000002,
+        "listed_at": "2024-01-03T00:00:00.000Z",
+        "notes": null,
+        "type": "show",
+        "show": {
+            "title": "Test Show One",
+            "year": 2019,
+            "ids": {"trakt": 93001, "slug": "test-show-one", "tvdb": null, "imdb": "tt9930001", "tmdb": 2001, "tvrage": null}
+        }
+    }
+]

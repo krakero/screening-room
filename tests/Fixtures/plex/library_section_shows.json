@@ -1,0 +1,26 @@
+{
+  "MediaContainer": {
+    "size": 1,
+    "totalSize": 1,
+    "offset": 0,
+    "librarySectionID": 2,
+    "librarySectionTitle": "TV Shows",
+    "Metadata": [
+      {
+        "ratingKey": "54321",
+        "key": "/library/metadata/54321",
+        "guid": "plex://show/64f1a2b3c4d5e6f7a8b9c0d2",
+        "librarySectionTitle": "TV Shows",
+        "librarySectionID": 2,
+        "type": "show",
+        "title": "1923",
+        "year": 2022,
+        "Guid": [
+          {"id": "imdb://tt1660011"},
+          {"id": "tmdb://157744"},
+          {"id": "tvdb://422948"}
+        ]
+      }
+    ]
+  }
+}

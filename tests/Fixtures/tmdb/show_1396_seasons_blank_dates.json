@@ -1,0 +1,23 @@
+{
+  "id": 1396,
+  "season/1": {
+    "id": 3572,
+    "season_number": 1,
+    "name": "Season 1",
+    "overview": "High school chemistry teacher Walter White's life is transformed by a cancer diagnosis.",
+    "air_date": "",
+    "poster_path": "/1BP4xYv9ZG4ZFdynW3sfxjKh2G8.jpg",
+    "episodes": [
+      {
+        "id": 62085,
+        "episode_number": 1,
+        "season_number": 1,
+        "name": "Pilot",
+        "overview": "Walter White, a struggling high school chemistry teacher, is diagnosed with lung cancer.",
+        "air_date": "",
+        "runtime": 58,
+        "still_path": "/3P4dqcRk1FvyKF1P1eBBGqfa2j.jpg"
+      }
+    ]
+  }
+}

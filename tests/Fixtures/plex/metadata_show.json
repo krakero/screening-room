@@ -1,0 +1,20 @@
+{
+  "MediaContainer": {
+    "size": 1,
+    "Metadata": [
+      {
+        "ratingKey": "800",
+        "key": "/library/metadata/800",
+        "guid": "plex://show/5d9c07ee15abcc001f487f78",
+        "type": "show",
+        "title": "Game of Thrones",
+        "year": 2011,
+        "Guid": [
+          {"id": "tmdb://1399"},
+          {"id": "imdb://tt0944947"},
+          {"id": "tvdb://121361"}
+        ]
+      }
+    ]
+  }
+}

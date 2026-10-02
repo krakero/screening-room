@@ -1,0 +1,69 @@
+[
+    {
+        "id": 5001,
+        "watched_at": "2024-01-01T00:00:00.000Z",
+        "action": "scrobble",
+        "type": "movie",
+        "movie": {
+            "title": "Test Movie One",
+            "year": 2020,
+            "ids": {"trakt": 91001, "slug": "test-movie-one-2020", "imdb": "tt9910001", "tmdb": 1001}
+        }
+    },
+    {
+        "id": 5002,
+        "watched_at": "2024-01-02T00:00:00.000Z",
+        "action": "scrobble",
+        "type": "episode",
+        "episode": {
+            "season": 1,
+            "number": 1,
+            "title": "Pilot",
+            "ids": {"trakt": 92001, "tvdb": null, "imdb": null, "tmdb": 800001, "tvrage": null}
+        },
+        "show": {
+            "title": "Test Show One",
+            "year": 2019,
+            "ids": {"trakt": 93001, "slug": "test-show-one", "tvdb": null, "imdb": "tt9930001", "tmdb": 2001, "tvrage": null}
+        }
+    },
+    {
+        "id": 5003,
+        "watched_at": "2024-01-03T00:00:00.000Z",
+        "action": "scrobble",
+        "type": "episode",
+        "episode": {
+            "season": 1,
+            "number": 2,
+            "title": "Second",
+            "ids": {"trakt": 92002, "tvdb": null, "imdb": null, "tmdb": 800002, "tvrage": null}
+        },
+        "show": {
+            "title": "Test Show One",
+            "year": 2019,
+            "ids": {"trakt": 93001, "slug": "test-show-one", "tvdb": null, "imdb": "tt9930001", "tmdb": 2001, "tvrage": null}
+        }
+    },
+    {
+        "id": 5004,
+        "watched_at": "2024-01-04T00:00:00.000Z",
+        "action": "scrobble",
+        "type": "movie",
+        "movie": {
+            "title": "No TMDB Match",
+            "year": 2021,
+            "ids": {"trakt": 91002, "slug": "no-tmdb-match-2021", "imdb": null, "tmdb": null}
+        }
+    },
+    {
+        "id": 5005,
+        "watched_at": "2024-01-05T00:00:00.000Z",
+        "action": "scrobble",
+        "type": "movie",
+        "movie": {
+            "title": "Test Movie Missing On TMDB",
+            "year": 2022,
+            "ids": {"trakt": 91003, "slug": "test-movie-missing-2022", "imdb": "tt9910002", "tmdb": 1002}
+        }
+    }
+]

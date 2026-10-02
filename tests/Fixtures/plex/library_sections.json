@@ -1,0 +1,54 @@
+{
+  "MediaContainer": {
+    "size": 5,
+    "allowSync": true,
+    "title1": "Plex Library",
+    "Directory": [
+      {
+        "key": "1",
+        "type": "movie",
+        "title": "Movies",
+        "agent": "tv.plex.agents.movie",
+        "scanner": "Plex Movie",
+        "language": "en-US",
+        "uuid": "aaaa1111-0000-0000-0000-000000000001"
+      },
+      {
+        "key": "2",
+        "type": "show",
+        "title": "TV Shows",
+        "agent": "tv.plex.agents.series",
+        "scanner": "Plex TV Series",
+        "language": "en-US",
+        "uuid": "aaaa1111-0000-0000-0000-000000000002"
+      },
+      {
+        "key": "3",
+        "type": "artist",
+        "title": "Music",
+        "agent": "tv.plex.agents.music",
+        "scanner": "Plex Music",
+        "language": "en-US",
+        "uuid": "aaaa1111-0000-0000-0000-000000000003"
+      },
+      {
+        "key": "4",
+        "type": "movie",
+        "title": "Kids Movies",
+        "agent": "tv.plex.agents.movie",
+        "scanner": "Plex Movie",
+        "language": "en-US",
+        "uuid": "aaaa1111-0000-0000-0000-000000000004"
+      },
+      {
+        "key": "5",
+        "type": "show",
+        "title": "Kids Shows",
+        "agent": "tv.plex.agents.series",
+        "scanner": "Plex TV Series",
+        "language": "en-US",
+        "uuid": "aaaa1111-0000-0000-0000-000000000005"
+      }
+    ]
+  }
+}

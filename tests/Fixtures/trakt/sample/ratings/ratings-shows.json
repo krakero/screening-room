@@ -1,0 +1,12 @@
+[
+    {
+        "rated_at": "2024-01-12T00:00:00.000Z",
+        "rating": 7,
+        "type": "show",
+        "show": {
+            "title": "Test Show One",
+            "year": 2019,
+            "ids": {"trakt": 93001, "slug": "test-show-one", "tvdb": null, "imdb": "tt9930001", "tmdb": 2001, "tvrage": null}
+        }
+    }
+]

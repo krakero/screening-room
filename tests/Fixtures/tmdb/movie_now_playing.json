@@ -1,0 +1,25 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "id": 100001,
+      "title": "Now Playing One",
+      "release_date": "2026-09-10",
+      "poster_path": "/now-playing-one.jpg",
+      "popularity": 55.0
+    },
+    {
+      "id": 603,
+      "title": "The Matrix Resurrection",
+      "release_date": "2026-09-01",
+      "poster_path": "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
+      "popularity": 40.0
+    }
+  ],
+  "dates": {
+    "maximum": "2026-09-20",
+    "minimum": "2026-08-01"
+  },
+  "total_pages": 1,
+  "total_results": 2
+}

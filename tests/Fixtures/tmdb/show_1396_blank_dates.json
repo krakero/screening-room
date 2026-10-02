@@ -1,0 +1,34 @@
+{
+  "id": 1396,
+  "name": "Breaking Bad",
+  "original_name": "Breaking Bad",
+  "overview": "A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine.",
+  "first_air_date": "",
+  "last_air_date": "",
+  "status": "Ended",
+  "in_production": false,
+  "number_of_seasons": 1,
+  "number_of_episodes": 7,
+  "poster_path": "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
+  "backdrop_path": "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+  "genres": [
+    { "id": 18, "name": "Drama" },
+    { "id": 80, "name": "Crime" }
+  ],
+  "vote_average": 8.9,
+  "vote_count": 14000,
+  "seasons": [
+    { "id": 3572, "season_number": 1, "name": "Season 1", "episode_count": 7, "air_date": "", "poster_path": "/1BP4xYv9ZG4ZFdynW3sfxjKh2G8.jpg" }
+  ],
+  "aggregate_credits": {
+    "cast": [],
+    "crew": []
+  },
+  "external_ids": {
+    "imdb_id": "tt0903747",
+    "tvdb_id": 81189,
+    "facebook_id": null,
+    "instagram_id": null,
+    "twitter_id": null
+  }
+}

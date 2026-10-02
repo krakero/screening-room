@@ -1,0 +1,9 @@
+{
+    "user_id": 12345,
+    "username": "screening-room",
+    "api_requests": 1000,
+    "api_requests_count": 12,
+    "plan": "free",
+    "rate_limit": 1000,
+    "rate_limit_remaining": 988
+}

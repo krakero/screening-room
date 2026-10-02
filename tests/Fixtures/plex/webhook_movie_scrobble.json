@@ -1,0 +1,35 @@
+{
+  "event": "media.scrobble",
+  "user": true,
+  "owner": true,
+  "Account": {
+    "id": 1,
+    "thumb": "https://plex.tv/users/abc123/avatar",
+    "title": "vince"
+  },
+  "Server": {
+    "title": "media-server",
+    "uuid": "abcd1234"
+  },
+  "Player": {
+    "local": true,
+    "publicAddress": "1.2.3.4",
+    "title": "Living Room Apple TV",
+    "uuid": "player-uuid"
+  },
+  "Metadata": {
+    "librarySectionType": "movie",
+    "ratingKey": "501",
+    "key": "/library/metadata/501",
+    "guid": "plex://movie/5d776b59880197001ec967c6",
+    "type": "movie",
+    "title": "The Matrix",
+    "year": 1999,
+    "viewedAt": 1758000000,
+    "Guid": [
+      {"id": "tmdb://603"},
+      {"id": "imdb://tt0133093"},
+      {"id": "tvdb://169"}
+    ]
+  }
+}

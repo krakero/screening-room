@@ -1,0 +1,82 @@
+name: screening-room
+
+services:
+  app:
+    image: ghcr.io/krakero/screening-room:latest
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_PORT: ${APP_PORT:-7331}
+      APP_URL: ${APP_URL:-http://localhost:7331}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE:-screening_room}
+      DB_USERNAME: ${DB_USERNAME:-screening_room}
+      DB_PASSWORD: ${DB_PASSWORD:-change-me-screening-room}
+      # Redis-aware defaults: when REDIS_HOST is set, these switch to redis
+      CACHE_STORE: ${CACHE_STORE:-database}
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+    ports:
+      - "${APP_PORT:-7331}:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - storage:/app/storage
+      - backups:/app/storage/app/backups
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-screening_room}
+      MYSQL_USER: ${DB_USERNAME:-screening_room}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-change-me-screening-room}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-change-me-root}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-change-me-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # Optional Redis service: activate with `docker compose --profile redis up`
+  # When using Redis, override the defaults:
+  #   CACHE_STORE=redis SESSION_DRIVER=redis QUEUE_CONNECTION=redis REDIS_HOST=redis
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    profiles:
+      - redis
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  redis-data:
+  storage:
+  backups:

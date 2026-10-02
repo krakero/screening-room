@@ -1,0 +1,55 @@
+{
+  "id": 62085,
+  "name": "Pilot",
+  "overview": "Diagnosed with terminal lung cancer, chemistry teacher Walter White teams up with a former student to cook and sell crystal meth.",
+  "air_date": "2008-01-20",
+  "episode_number": 1,
+  "season_number": 1,
+  "runtime": 58,
+  "still_path": "/ydlY3iPfeOAvu8gVqrxPoMvzNCn.jpg",
+  "vote_average": 8.2,
+  "vote_count": 421,
+  "credits": {
+    "cast": [
+      {
+        "id": 17419,
+        "name": "Bryan Cranston",
+        "character": "Walter White",
+        "profile_path": "/7Jahy5LZX2Fo8fGJltMreAI49hC.jpg",
+        "order": 0
+      },
+      {
+        "id": 84497,
+        "name": "Aaron Paul",
+        "character": "Jesse Pinkman",
+        "profile_path": "/u0YKzQ4gVE2SqUCg6P0R8cWjmZG.jpg",
+        "order": 1
+      }
+    ],
+    "crew": [
+      {
+        "id": 66633,
+        "name": "Vince Gilligan",
+        "job": "Director",
+        "department": "Directing",
+        "profile_path": null
+      },
+      {
+        "id": 66633,
+        "name": "Vince Gilligan",
+        "job": "Writer",
+        "department": "Writing",
+        "profile_path": null
+      }
+    ],
+    "guest_stars": [
+      {
+        "id": 92495,
+        "name": "Max Arciniega",
+        "character": "Krazy-8",
+        "profile_path": null,
+        "order": 500
+      }
+    ]
+  }
+}

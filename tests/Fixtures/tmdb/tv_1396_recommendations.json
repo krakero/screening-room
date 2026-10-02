@@ -1,0 +1,15 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "id": 400001,
+      "media_type": "tv",
+      "name": "Recommended Show One",
+      "first_air_date": "2011-01-01",
+      "poster_path": "/recommended-show-one.jpg",
+      "popularity": 25.0
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 1
+}

@@ -1,0 +1,34 @@
+{
+  "event": "media.scrobble",
+  "user": true,
+  "owner": true,
+  "Account": {
+    "id": 1,
+    "thumb": "https://plex.tv/users/abc123/avatar",
+    "title": "vince"
+  },
+  "Server": {
+    "title": "media-server",
+    "uuid": "abcd1234"
+  },
+  "Player": {
+    "local": true,
+    "publicAddress": "1.2.3.4",
+    "title": "Living Room Apple TV",
+    "uuid": "player-uuid"
+  },
+  "Metadata": {
+    "librarySectionType": "show",
+    "ratingKey": "902",
+    "key": "/library/metadata/902",
+    "parentRatingKey": "900",
+    "grandparentRatingKey": "800",
+    "guid": "com.plexapp.agents.thetvdb://81189/1/1?lang=en",
+    "type": "episode",
+    "title": "Pilot",
+    "grandparentTitle": "Breaking Bad",
+    "parentIndex": 1,
+    "index": 1,
+    "viewedAt": 1758000600
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "MediaContainer": {
+    "size": 2,
+    "totalSize": 2,
+    "offset": 0,
+    "librarySectionID": 1,
+    "librarySectionTitle": "Movies",
+    "Metadata": [
+      {
+        "ratingKey": "12345",
+        "key": "/library/metadata/12345",
+        "guid": "plex://movie/64f1a2b3c4d5e6f7a8b9c0d1",
+        "librarySectionTitle": "Movies",
+        "librarySectionID": 1,
+        "type": "movie",
+        "title": "57 Seconds",
+        "year": 2023,
+        "Guid": [
+          {"id": "imdb://tt13157592"},
+          {"id": "tmdb://937249"}
+        ]
+      },
+      {
+        "ratingKey": "99999",
+        "key": "/library/metadata/99999",
+        "guid": "local://99999",
+        "librarySectionTitle": "Movies",
+        "librarySectionID": 1,
+        "type": "movie",
+        "title": "Home Video",
+        "year": 2020
+      }
+    ]
+  }
+}

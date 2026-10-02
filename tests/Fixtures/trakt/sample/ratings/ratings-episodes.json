@@ -1,0 +1,18 @@
+[
+    {
+        "rated_at": "2024-01-13T00:00:00.000Z",
+        "rating": 4,
+        "type": "episode",
+        "episode": {
+            "season": 1,
+            "number": 1,
+            "title": "Pilot",
+            "ids": {"trakt": 92001, "tvdb": null, "imdb": null, "tmdb": 800001, "tvrage": null}
+        },
+        "show": {
+            "title": "Test Show One",
+            "year": 2019,
+            "ids": {"trakt": 93001, "slug": "test-show-one", "tvdb": null, "imdb": "tt9930001", "tmdb": 2001, "tvrage": null}
+        }
+    }
+]

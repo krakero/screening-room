@@ -1,0 +1,28 @@
+{
+  "event": "library.new",
+  "user": true,
+  "owner": true,
+  "Server": {
+    "title": "media-server",
+    "uuid": "abcd1234"
+  },
+  "Metadata": {
+    "librarySectionType": "show",
+    "ratingKey": "901",
+    "key": "/library/metadata/901",
+    "parentRatingKey": "900",
+    "grandparentRatingKey": "800",
+    "guid": "plex://episode/5d9c085f9f6b5c001f6a3a1a",
+    "grandparentGuid": "plex://show/5d9c07ee15abcc001f487f78",
+    "type": "episode",
+    "title": "Winter Is Coming",
+    "grandparentTitle": "Game of Thrones",
+    "parentIndex": 1,
+    "index": 1,
+    "Guid": [
+      {"id": "tmdb://63056"},
+      {"id": "imdb://tt1480055"},
+      {"id": "tvdb://3254641"}
+    ]
+  }
+}

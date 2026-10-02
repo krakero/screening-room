@@ -1,0 +1,17 @@
+{
+    "id": 1396,
+    "imdb_id": "tt0903747",
+    "title": "Breaking Bad",
+    "year": 2008,
+    "type": "show",
+    "score": 96,
+    "score_average": 94,
+    "ratings": [
+        {"source": "imdb", "value": 9.5, "votes": 2200000},
+        {"source": "tmdb", "value": 8.9, "votes": 15000},
+        {"source": "trakt", "value": 95, "votes": 90000},
+        {"source": "tomatoes", "value": 96, "url": "https://www.rottentomatoes.com/tv/breaking_bad"},
+        {"source": "tomatoesaudience", "value": 97},
+        {"source": "metacritic", "value": 87}
+    ]
+}
