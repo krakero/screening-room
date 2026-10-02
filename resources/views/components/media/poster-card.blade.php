@@ -16,6 +16,7 @@
         'sm' => 'w-28',
         'md' => 'w-36',
         'lg' => 'w-48',
+        'fluid' => 'w-full',
     ];
 
     $width = $widths[$size] ?? $widths['md'];

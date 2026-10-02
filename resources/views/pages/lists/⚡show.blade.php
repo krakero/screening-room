@@ -257,7 +257,7 @@ $releaseDate = $title->isMovie() ? $title->release_date : $title->last_air_date;
 $summary = $this->ownershipSummaries[$title->id] ?? null;
 @endphp
 <div wire:key="item-{{ $item->id }}" wire:sort:item="{{ $item->title_id }}" x-data="optimistic(false)" x-show="!value" x-transition.opacity.duration.200ms class="group/item relative">
-<x-media.poster-card :image="$title->posterUrl()" :name="$title->name" :subtitle="$releaseDate?->format('Y')" :href="route('titles.show', $title)" :type="$title->type->value" :status="$title->libraryStatus?->state->value" size="lg">
+<x-media.poster-card :image="$title->posterUrl()" :name="$title->name" :subtitle="$releaseDate?->format('Y')" :href="route('titles.show', $title)" :type="$title->type->value" :status="$title->libraryStatus?->state->value" size="fluid">
 @if ($summary && $summary->isOwned())
 <x-slot:badge>
 <x-media.owned-badge :summary="$summary" />

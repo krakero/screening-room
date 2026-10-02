@@ -8,6 +8,7 @@ use App\Models\Season;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\Collection\Ownership;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 test('forTitle returns ownership summary with copies', function () {
@@ -143,4 +144,22 @@ test('isEnabled returns true when user has collection enabled', function () {
     $ownership = new Ownership;
 
     expect($ownership->isEnabled())->toBeTrue();
+});
+
+test('forTitles eager-loads plex items so strict lazy loading does not throw', function () {
+    $this->actingAs(User::factory()->create(['collection_enabled' => true]));
+
+    $titles = Title::factory()->count(3)->create();
+    PlexItem::factory()->for($titles->first(), 'plexable')->create();
+
+    Model::preventLazyLoading(true);
+
+    try {
+        $summaries = app(Ownership::class)->forTitles(Title::query()->whereIn('id', $titles->pluck('id'))->get());
+    } finally {
+        Model::preventLazyLoading(false);
+    }
+
+    expect($summaries)->toHaveCount(3)
+        ->and($summaries[$titles->first()->id]->inPlex)->toBeTrue();
 });

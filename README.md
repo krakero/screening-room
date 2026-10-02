@@ -1,6 +1,28 @@
+<p align="center"><img src="docs/images/header.svg" alt="Screening Room" width="100%"></p>
+
 # Screening Room
 
 Personal movie/TV tracker combining TMDB metadata, Plex scrobbling, and Seerr/Sonarr/Radarr integrations — tracks what you've watched, what's coming up, and what you want to request.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Dashboard](docs/images/up-next.png)<br>**Dashboard** — Continue watching and upcoming episodes | ![Discover](docs/images/discover.png)<br>**Discover** — Trending and new releases from TMDB |
+| ![Title Details](docs/images/title-show.png)<br>**Title Details** — Show info with seasons and episodes | ![Calendar](docs/images/calendar.png)<br>**Calendar** — Upcoming episodes from followed shows |
+| ![History](docs/images/history.png)<br>**Watch History** — Recently watched movies and episodes | ![Stats](docs/images/stats.png)<br>**Statistics** — Watch time, streaks, and activity charts |
+| ![Collection](docs/images/collection.png)<br>**Collection** — Personal library tracking | ![Updates](docs/images/settings-updates.png)<br>**In-app Updates** — One-click updates with automatic rollback |
+
+<details>
+<summary>More screenshots</summary>
+
+- [Season view](docs/images/season.png) — Episode list with watch progress
+- [Movie details](docs/images/title-movie.png) — Movie page with ratings and plays
+- [Lists](docs/images/lists.png) — Custom watchlists
+- [List detail](docs/images/list-detail.png) — List contents with filters
+- [Backups](docs/images/settings-backups.png) — Backup management
+
+</details>
 
 ## Requirements
 

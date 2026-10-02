@@ -6,6 +6,7 @@ use App\Models\CollectionItem;
 use App\Models\PlexLibraryEpisode;
 use App\Models\Season;
 use App\Models\Title;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class Ownership
 {
@@ -57,7 +58,8 @@ class Ownership
                 ->all();
         }
 
-        $titleIds = collect($titles)->pluck('id')->all();
+        $titles = EloquentCollection::make(collect($titles)->all())->loadMissing('plexItem');
+        $titleIds = $titles->pluck('id')->all();
 
         $copiesByTitleId = CollectionItem::query()
             ->whereIn('title_id', $titleIds)
