@@ -17,6 +17,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | The application version, channel, and commit SHA. These values are set
+    | by the Docker build process and used for update management.
+    |
+    */
+
+    'version' => env('APP_VERSION', 'dev'),
+
+    'channel' => env('APP_CHANNEL', 'develop'),
+
+    'commit' => env('APP_COMMIT'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

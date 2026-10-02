@@ -11,6 +11,7 @@
                 <flux:navlist.item :href="route('appearance.edit')" icon="swatch" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
                 <flux:navlist.item :href="route('devices.edit')" icon="device-phone-mobile" wire:navigate>{{ __('Devices') }}</flux:navlist.item>
                 <flux:navlist.item :href="route('settings.backups')" icon="archive-box" wire:navigate>{{ __('Backups') }}</flux:navlist.item>
+                <flux:navlist.item :href="route('settings.updates')" icon="arrow-path" wire:navigate>{{ __('Updates') }}</flux:navlist.item>
 
                 <flux:navlist.group heading="{{ __('Features') }}" class="mt-4">
                     <flux:navlist.item :href="route('settings.features.collection')" icon="rectangle-stack" wire:navigate>

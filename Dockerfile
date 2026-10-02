@@ -31,6 +31,15 @@ RUN npm run build
 ########################################
 FROM dunglas/frankenphp:1-php8.4 AS app
 
+ARG APP_VERSION=dev
+ARG APP_CHANNEL=develop
+ARG APP_COMMIT=
+ARG TARGETARCH
+
+ENV APP_VERSION=${APP_VERSION}
+ENV APP_CHANNEL=${APP_CHANNEL}
+ENV APP_COMMIT=${APP_COMMIT}
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         libpq-dev \
@@ -47,6 +56,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         opcache \
     && apt-get purge -y --auto-remove \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI and compose plugin (pinned versions)
+RUN DOCKER_VERSION=27.3.1 && \
+    COMPOSE_VERSION=v2.29.7 && \
+    ARCH_MAP=$([ "$TARGETARCH" = "amd64" ] && echo "x86_64" || echo "aarch64") && \
+    curl -fsSL "https://download.docker.com/linux/static/stable/${ARCH_MAP}/docker-${DOCKER_VERSION}.tgz" | tar xz --strip-components=1 -C /usr/local/bin docker/docker && \
+    mkdir -p /usr/local/lib/docker/cli-plugins && \
+    curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${ARCH_MAP}" -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 WORKDIR /app
 

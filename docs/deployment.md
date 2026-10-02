@@ -156,6 +156,79 @@ URL under Plex's **Settings → Webhooks**. The endpoint is CSRF-exempt and
 authenticates purely via the secret path segment (constant-time compare,
 404 on mismatch), so it must stay behind HTTPS.
 
+## Updates
+
+**Settings → Updates** provides in-app update checking and one-click updates with automatic rollback on failure.
+
+### Update channels
+
+The app supports two update channels:
+
+- **Stable** (`latest` tag): versioned releases (v0.1.0, v0.2.0, etc.). The first stable release is v0.1.0. Use this for production.
+- **Develop** (`develop` tag): tracks the `main` branch and is published on every push. Use this to test upcoming features or fixes before they're released.
+
+You can switch channels from **Settings → Updates**. Switching from Develop to Stable may require restoring a pre-update database dump if the develop branch introduced schema changes not yet in stable.
+
+### The updater service
+
+The `docker-compose.yml` file includes an **updater** service that monitors for new images and orchestrates updates:
+
+```yaml
+updater:
+  image: ghcr.io/krakero/screening-room:${APP_IMAGE_TAG:-latest}
+  command: ["php", "artisan", "updater:run"]
+  restart: unless-stopped
+  volumes:
+    - storage:/app/storage
+    - /var/run/docker.sock:/var/run/docker.sock
+    - .:/project
+  environment:
+    UPDATER_PROJECT_DIR: /project
+    UPDATER_COMPOSE_PROJECT: screening-room
+    UPDATER_APP_SERVICE: app
+  # The updater has access to:
+  # - Docker socket: to pull images and recreate the app container
+  # - Project directory (.): to update APP_IMAGE_TAG in .env
+  # - Storage volume: to write status files and read pre-update dumps
+  # It only manages this compose project's containers.
+  #
+  # To disable in-app updates, delete this service and run:
+  #   docker compose up -d
+  # Then manage updates manually with:
+  #   docker compose pull && docker compose up -d
+```
+
+When you click "Update now" in **Settings → Updates**, the web UI writes a request file to the storage volume. The updater service picks it up, pulls the new image, updates `APP_IMAGE_TAG` in your `.env` file, and recreates the `app` container. It polls the new container's health check for up to 5 minutes; if the container becomes unhealthy or fails to start, the updater restores the previous `APP_IMAGE_TAG` and recreates the container again (automatic rollback).
+
+### Pre-update database dumps
+
+Before running `php artisan migrate` on a new version, the entrypoint checks if the version has changed. If it has, it creates a timestamped MySQL dump at `/app/storage/app/backups/pre-update-<version>-<timestamp>.sql.gz` (keeping the 5 newest). If migration fails, the entrypoint exits with an error, the container becomes unhealthy, and the updater rolls back to the previous image. The pre-update dump is then available for manual restore via **Settings → Backups** or `/setup/restore`.
+
+### Manual updates (without the updater service)
+
+To manage updates manually, remove the `updater` service from `docker-compose.yml` and run `docker compose up -d`. Then update with:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+Set `APP_IMAGE_TAG` in `.env` to pin a specific version or switch channels:
+
+```env
+APP_IMAGE_TAG=latest    # stable channel
+APP_IMAGE_TAG=develop   # develop channel
+APP_IMAGE_TAG=0.2.1     # pin a specific version
+```
+
+### Rollback
+
+If an update causes issues:
+
+1. The automatic rollback (triggered by health check failure) restores the previous image tag
+2. Download the pre-update dump from **Settings → Backups** (named `pre-update-<version>-<timestamp>.sql.gz`) and restore it via **Settings → Backups** or `/setup/restore`
+3. To roll back to a specific version manually: set `APP_IMAGE_TAG=<version>` in `.env`, then `docker compose up -d`
+
 ## Backups
 
 **Settings → Backups** creates timestamped database dumps in the `backups`
@@ -188,11 +261,6 @@ gunzip -c backups/screening-room-YYYY-MM-DD.sql.gz \
   | docker compose exec -T mysql mysql -u root -p"$DB_ROOT_PASSWORD" "$DB_DATABASE"
 ```
 
-The `mysql-data` and `storage` named volumes hold the database and Laravel's
-storage directory (logs, cached views, Flux/Livewire temp files). `storage/`
-is disposable; nothing user-generated lives there since posters and backdrops
-are always loaded from the TMDB CDN and never downloaded.
-
 ### Backup restore and Trakt import file sizes
 
 The app supports uploading backup files (Settings → Backups) and Trakt
@@ -209,3 +277,22 @@ The restore operation's `max_execution_time` is set to 300 seconds (5 minutes)
 in `docker/php.ini` to accommodate large backups. If you're running the app
 outside Docker (local dev with Herd/Valet), ensure your PHP config allows
 uploads ≥ 512 MB and sufficient execution time for restore operations.
+
+## Release process
+
+New versions are released by tagging `main` with a semver tag (e.g., `v0.1.0`). The tag triggers a GitHub Actions workflow that builds and publishes the image with both the version tag and the `latest` tag, and creates a GitHub Release.
+
+To create a new release:
+
+```sh
+scripts/release.sh 0.1.0
+```
+
+The script asserts a clean working tree, creates an annotated tag `v0.1.0`, and pushes it to the remote. The CI workflow then builds the image with `APP_VERSION=0.1.0`, `APP_CHANNEL=stable`, and publishes it as:
+
+- `ghcr.io/krakero/screening-room:latest`
+- `ghcr.io/krakero/screening-room:0`
+- `ghcr.io/krakero/screening-room:0.1`
+- `ghcr.io/krakero/screening-room:0.1.0`
+
+The workflow also creates a GitHub Release with auto-generated notes from the commits since the previous tag.

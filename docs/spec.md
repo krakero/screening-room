@@ -23,6 +23,7 @@ A personal, single-user tracker for movies and TV. It stores TMDB metadata local
 | Home screen | "Up Next": the next unwatched episode for each active in-progress show |
 | Stale shows | Shows with no plays for 6 months are hidden from Up Next and marked **Abandoned**, which is visible on the title and filterable |
 | Specials | Season 0 is tracked but never counts toward progress, Up Next, or completion |
+| Update channels | Stable (`latest` tag, versioned releases starting with v0.1.0) and Develop (`develop` tag, tracks `main`). In-app updates via an updater sidecar with automatic rollback |
 
 ## Data model (first draft)
 
@@ -73,7 +74,7 @@ A personal, single-user tracker for movies and TV. It stores TMDB metadata local
 4. **Calendar** (phase 4; a 'Coming soon' placeholder until then): episodes of followed shows (not abandoned), Watchlist movie release dates, season premieres of Watchlist shows you haven't started, plus the past 7 days of aired-but-unwatched episodes so you can catch up. Layout TBD at build time (agenda vs month grid)
 5. **History**: chronological play log
 6. **Lists**: watchlist and custom lists
-7. **Settings**: Features: Collection, Trakt import; Integrations: TMDB key, Plex server/token/account, Seerr, Sonarr, Radarr, Pushover, qBittorrent, MDBList
+7. **Settings**: Features: Collection, Trakt import; Integrations: TMDB key, Plex server/token/account, Seerr, Sonarr, Radarr, Pushover, qBittorrent, MDBList; Updates: version, channel (Stable/Develop), check for updates, one-click update, pre-update dumps
 
 ## Status (2026-09-30)
 

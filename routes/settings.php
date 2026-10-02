@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\UpdateStatusController;
 use App\Services\Backup\BackupException;
 use App\Services\Backup\BackupManager;
 use App\Support\IntegrationSettings;
@@ -25,6 +26,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             abort(404);
         }
     })->name('settings.backups.download');
+
+    Route::livewire('settings/updates', 'pages::settings.updates')->name('settings.updates');
+
+    Route::get('settings/updates/status', UpdateStatusController::class)
+        ->name('settings.updates.status');
 
     Route::livewire('settings/security', 'pages::settings.security')
         ->middleware([

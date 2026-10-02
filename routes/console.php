@@ -63,3 +63,7 @@ Schedule::command('ratings:refresh', ['--limit' => RefreshRatings::HOURLY_LIMIT]
     ->hourly()
     ->withoutOverlapping()
     ->when(fn (): bool => app(IntegrationSettings::class)->configured('mdblist.api_key'));
+
+Schedule::command('updates:check')
+    ->daily()
+    ->withoutOverlapping();

@@ -2,7 +2,7 @@ name: screening-room
 
 services:
   app:
-    image: ghcr.io/krakero/screening-room:latest
+    image: ghcr.io/krakero/screening-room:${APP_IMAGE_TAG:-latest}
     env_file:
       - path: .env
         required: false
@@ -73,6 +73,28 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
+
+  # Updater sidecar: monitors for update requests and orchestrates Docker-based updates.
+  # This service mounts the Docker socket (/var/run/docker.sock), granting it full control
+  # over all containers on the host. It can pull images, recreate services, and inspect
+  # container health. It also mounts the installation directory (.:/project) to update
+  # the .env file during updates.
+  #
+  # For manual updates without the updater service:
+  #   1. Remove or comment out this entire 'updater' service block
+  #   2. Run: docker compose pull && docker compose up -d
+  updater:
+    image: ghcr.io/krakero/screening-room:${APP_IMAGE_TAG:-latest}
+    command: ["php", "artisan", "updater:run"]
+    environment:
+      UPDATER_PROJECT_DIR: /project
+      UPDATER_COMPOSE_PROJECT: ${UPDATER_COMPOSE_PROJECT:-screening-room}
+      UPDATER_APP_SERVICE: app
+    volumes:
+      - storage:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/project
     restart: unless-stopped
 
 volumes:
