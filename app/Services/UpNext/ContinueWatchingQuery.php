@@ -18,7 +18,8 @@ class ContinueWatchingQuery
 {
     /**
      * A show whose next episode is in an older season stays on Continue Watching only if
-     * the episode before it was watched within this many days.
+     * the episode before it was watched within this many days. A show with nothing watched
+     * yet is exempt: following it is the signal to start, so its first episode is shown.
      */
     private const RECENT_WATCH_DAYS = 30;
 
@@ -53,7 +54,8 @@ class ContinueWatchingQuery
         $currentSeasonByTitleId = $this->currentSeasonNumbers($entries->pluck('title.id'));
 
         $olderSeasonEntries = $entries->reject(
-            fn (array $entry): bool => $entry['progress']->nextEpisode->season_number === $currentSeasonByTitleId->get($entry['title']->id)
+            fn (array $entry): bool => $this->isFreshStart($entry)
+                || $entry['progress']->nextEpisode->season_number === $currentSeasonByTitleId->get($entry['title']->id)
         );
 
         $previousEpisodeIdByTitleId = $this->previousEpisodeIds($olderSeasonEntries);
@@ -63,7 +65,7 @@ class ContinueWatchingQuery
             ->filter(function (array $entry) use ($currentSeasonByTitleId, $previousEpisodeIdByTitleId, $recentlyWatchedEpisodeIds): bool {
                 $titleId = $entry['title']->id;
 
-                if ($entry['progress']->nextEpisode->season_number === $currentSeasonByTitleId->get($titleId)) {
+                if ($this->isFreshStart($entry) || $entry['progress']->nextEpisode->season_number === $currentSeasonByTitleId->get($titleId)) {
                     return true;
                 }
 
@@ -72,6 +74,14 @@ class ContinueWatchingQuery
                 return $previousEpisodeId !== null && $recentlyWatchedEpisodeIds->contains($previousEpisodeId);
             })
             ->values();
+    }
+
+    /**
+     * @param  array{title: Title, progress: ShowProgressData}  $entry
+     */
+    private function isFreshStart(array $entry): bool
+    {
+        return $entry['progress']->watchedCount === 0;
     }
 
     /**

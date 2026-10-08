@@ -49,13 +49,28 @@ test('a show is hidden when its next episode is in an older season and the previ
     expect($titleIds)->not->toContain($title->id);
 });
 
+test('a followed show with nothing watched yet is shown from its first episode even when newer seasons have aired', function () {
+    $title = Title::factory()->show()->create();
+    $seasonOne = Season::factory()->for($title)->create(['season_number' => 1]);
+    $seasonTwo = Season::factory()->for($title)->create(['season_number' => 2]);
+    $firstEpisode = Episode::factory()->aired()->for($seasonOne)->create(['title_id' => $title->id, 'season_number' => 1, 'episode_number' => 1]);
+    Episode::factory()->aired()->for($seasonTwo)->create(['title_id' => $title->id, 'season_number' => 2, 'episode_number' => 1]);
+    Follow::factory()->for($title)->create();
+
+    $entry = app(ContinueWatchingQuery::class)->get()->firstWhere('title.id', $title->id);
+
+    expect($entry)->not->toBeNull()
+        ->and($entry['progress']->nextEpisode->is($firstEpisode))->toBeTrue();
+});
+
 test('a show is hidden when its next episode is in an older season with no tracked previous episode (started mid-way)', function () {
     $title = Title::factory()->show()->create();
     $seasonOne = Season::factory()->for($title)->create(['season_number' => 1]);
     $seasonTwo = Season::factory()->for($title)->create(['season_number' => 2]);
     Episode::factory()->aired()->for($seasonOne)->create(['title_id' => $title->id, 'season_number' => 1, 'episode_number' => 1]);
-    Episode::factory()->aired()->for($seasonTwo)->create(['title_id' => $title->id, 'season_number' => 2, 'episode_number' => 1]);
-    Follow::factory()->for($title)->create();
+    $seasonTwoPremiere = Episode::factory()->aired()->for($seasonTwo)->create(['title_id' => $title->id, 'season_number' => 2, 'episode_number' => 1]);
+    Episode::factory()->aired()->for($seasonTwo)->create(['title_id' => $title->id, 'season_number' => 2, 'episode_number' => 2]);
+    Play::factory()->for($seasonTwoPremiere, 'playable')->create(['watched_at' => now()->subDays(10)]);
 
     $titleIds = app(ContinueWatchingQuery::class)->get()->pluck('title.id');
 
