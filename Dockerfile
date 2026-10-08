@@ -54,6 +54,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pcntl \
         intl \
         opcache \
+        zip \
     && apt-get purge -y --auto-remove \
     && rm -rf /var/lib/apt/lists/*
 
