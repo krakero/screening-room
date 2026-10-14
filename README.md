@@ -107,6 +107,8 @@ MySQL dumps: see [docs/deployment.md](docs/deployment.md#backups).
 
 Run behind a reverse proxy (Caddy, Traefik, nginx) that terminates TLS and forwards to `localhost:7331`. See [docs/deployment.md](docs/deployment.md#home-server--vps-setup) for home server and VPS setup.
 
+For Tailscale Serve running on the Docker host, use the [host-based Tailscale Serve guide](docs/deployment.md#tailscale-serve-on-the-docker-host). It keeps the published HTTP port on loopback and trusts only the Docker host address actually seen by the container.
+
 ## Developing
 
 Local development with hot-reloading:
