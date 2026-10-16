@@ -1,0 +1,19 @@
+{
+  "MediaContainer": {
+    "size": 1,
+    "Metadata": [
+      {
+        "ratingKey": "901",
+        "key": "/library/metadata/901",
+        "parentRatingKey": "900",
+        "grandparentRatingKey": "800",
+        "grandparentKey": "/library/metadata/800",
+        "type": "episode",
+        "title": "Winter Is Coming",
+        "grandparentTitle": "Game of Thrones",
+        "parentIndex": 1,
+        "index": 1
+      }
+    ]
+  }
+}

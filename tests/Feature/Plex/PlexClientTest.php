@@ -316,3 +316,48 @@ test('episodeRatingKey matches by season and episode number', function () {
         ->and(app(PlexClient::class)->episodeRatingKey('800', 1, 1))->toBe('901')
         ->and(app(PlexClient::class)->episodeRatingKey('800', 9, 9))->toBeNull();
 });
+
+test('recentHistory falls back to parsing grandparentKey when grandparentRatingKey is missing', function () {
+    $historyWithoutRatingKey = plexFixture('history_all');
+    unset($historyWithoutRatingKey['MediaContainer']['Metadata'][1]['grandparentRatingKey']);
+
+    Http::fake([
+        '*plex.local:32400/status/sessions/history/all*' => Http::response($historyWithoutRatingKey),
+    ]);
+
+    $entries = app(PlexClient::class)->recentHistory(Carbon::createFromTimestamp(1757999999));
+
+    expect($entries)->toHaveCount(2)
+        ->and($entries[1]['grandparent_rating_key'])->toBe('800');
+});
+
+test('episodeShowRatingKey returns grandparentRatingKey from episode metadata', function () {
+    Http::fake([
+        '*plex.local:32400/library/metadata/901*' => Http::response(plexFixture('metadata_episode')),
+    ]);
+
+    expect(app(PlexClient::class)->episodeShowRatingKey('901'))->toBe('800');
+});
+
+test('episodeShowRatingKey falls back to parsing grandparentKey when grandparentRatingKey is missing', function () {
+    $episodeWithoutRatingKey = plexFixture('metadata_episode');
+    unset($episodeWithoutRatingKey['MediaContainer']['Metadata'][0]['grandparentRatingKey']);
+
+    Http::fake([
+        '*plex.local:32400/library/metadata/901*' => Http::response($episodeWithoutRatingKey),
+    ]);
+
+    expect(app(PlexClient::class)->episodeShowRatingKey('901'))->toBe('800');
+});
+
+test('episodeShowRatingKey returns null when neither grandparentRatingKey nor grandparentKey exist', function () {
+    $episodeWithoutKeys = plexFixture('metadata_episode');
+    unset($episodeWithoutKeys['MediaContainer']['Metadata'][0]['grandparentRatingKey']);
+    unset($episodeWithoutKeys['MediaContainer']['Metadata'][0]['grandparentKey']);
+
+    Http::fake([
+        '*plex.local:32400/library/metadata/901*' => Http::response($episodeWithoutKeys),
+    ]);
+
+    expect(app(PlexClient::class)->episodeShowRatingKey('901'))->toBeNull();
+});

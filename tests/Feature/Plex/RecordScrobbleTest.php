@@ -482,3 +482,174 @@ test('it ignores events with no usable guids', function () {
     expect($play)->toBeNull()
         ->and(Play::count())->toBe(0);
 });
+
+test('it matches a show by stripping trailing country code suffix when exact match fails', function () {
+    $show = Title::factory()->create(['type' => TitleType::Show, 'name' => 'The Diplomat']);
+    $season = Season::factory()->for($show, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($show, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $event = [
+        'account_id' => '1',
+        'rating_key' => '905',
+        'viewed_at' => Carbon::createFromTimestamp(1758000900),
+        'type' => 'episode',
+        'title' => 'Episode 1',
+        'grandparent_title' => 'The Diplomat (US)',
+        'season_number' => 1,
+        'episode_number' => 1,
+        'guids' => [],
+        'show_guids' => [],
+    ];
+
+    $play = app(RecordScrobble::class)->handle($event);
+
+    expect($play)->not->toBeNull()
+        ->and($play->playable_id)->toBe($episode->id);
+});
+
+test('it matches a show by stripping trailing year suffix when exact match fails', function () {
+    $show = Title::factory()->create(['type' => TitleType::Show, 'name' => 'The Bear']);
+    $season = Season::factory()->for($show, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($show, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $event = [
+        'account_id' => '1',
+        'rating_key' => '906',
+        'viewed_at' => Carbon::createFromTimestamp(1758001000),
+        'type' => 'episode',
+        'title' => 'Episode 1',
+        'grandparent_title' => 'The Bear (2022)',
+        'season_number' => 1,
+        'episode_number' => 1,
+        'guids' => [],
+        'show_guids' => [],
+    ];
+
+    $play = app(RecordScrobble::class)->handle($event);
+
+    expect($play)->not->toBeNull()
+        ->and($play->playable_id)->toBe($episode->id);
+});
+
+test('it prefers exact name match over stripped suffix match', function () {
+    $showExact = Title::factory()->create(['type' => TitleType::Show, 'name' => 'The Office (US)']);
+    $showBase = Title::factory()->create(['type' => TitleType::Show, 'name' => 'The Office']);
+
+    $season = Season::factory()->for($showExact, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($showExact, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $event = [
+        'account_id' => '1',
+        'rating_key' => '907',
+        'viewed_at' => Carbon::createFromTimestamp(1758001100),
+        'type' => 'episode',
+        'title' => 'Episode 1',
+        'grandparent_title' => 'The Office (US)',
+        'season_number' => 1,
+        'episode_number' => 1,
+        'guids' => [],
+        'show_guids' => [],
+    ];
+
+    $play = app(RecordScrobble::class)->handle($event);
+
+    expect($play)->not->toBeNull()
+        ->and($play->playable_id)->toBe($episode->id);
+});
+
+test('it does not match when stripping suffix results in ambiguous shows', function () {
+    $show1 = Title::factory()->create(['type' => TitleType::Show, 'name' => 'The Office', 'tmdb_id' => 1001]);
+    $season1 = Season::factory()->for($show1, 'title')->create(['season_number' => 1]);
+    Episode::factory()->for($show1, 'title')->for($season1, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $show2 = Title::factory()->create(['type' => TitleType::Show, 'name' => 'The Office', 'tmdb_id' => 1002]);
+    $season2 = Season::factory()->for($show2, 'title')->create(['season_number' => 1]);
+    Episode::factory()->for($show2, 'title')->for($season2, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $event = [
+        'account_id' => '1',
+        'rating_key' => '908',
+        'viewed_at' => Carbon::createFromTimestamp(1758001200),
+        'type' => 'episode',
+        'title' => 'Episode 1',
+        'grandparent_title' => 'The Office (US)',
+        'season_number' => 1,
+        'episode_number' => 1,
+        'guids' => [],
+        'show_guids' => [],
+    ];
+
+    $play = app(RecordScrobble::class)->handle($event);
+
+    expect($play)->toBeNull()
+        ->and(Play::count())->toBe(0);
+});
+
+test('it handles three-letter country codes when stripping suffixes', function () {
+    $show = Title::factory()->create(['type' => TitleType::Show, 'name' => 'The Show']);
+    $season = Season::factory()->for($show, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($show, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $event = [
+        'account_id' => '1',
+        'rating_key' => '909',
+        'viewed_at' => Carbon::createFromTimestamp(1758001300),
+        'type' => 'episode',
+        'title' => 'Episode 1',
+        'grandparent_title' => 'The Show (USA)',
+        'season_number' => 1,
+        'episode_number' => 1,
+        'guids' => [],
+        'show_guids' => [],
+    ];
+
+    $play = app(RecordScrobble::class)->handle($event);
+
+    expect($play)->not->toBeNull()
+        ->and($play->playable_id)->toBe($episode->id);
+});
+
+test('it does not strip non-suffix parentheticals from show names', function () {
+    $show = Title::factory()->create(['type' => TitleType::Show, 'name' => 'Show']);
+    $season = Season::factory()->for($show, 'title')->create(['season_number' => 1]);
+    Episode::factory()->for($show, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $event = [
+        'account_id' => '1',
+        'rating_key' => '910',
+        'viewed_at' => Carbon::createFromTimestamp(1758001400),
+        'type' => 'episode',
+        'title' => 'Episode 1',
+        'grandparent_title' => 'Show (Part 2)',
+        'season_number' => 1,
+        'episode_number' => 1,
+        'guids' => [],
+        'show_guids' => [],
+    ];
+
+    $play = app(RecordScrobble::class)->handle($event);
+
+    expect($play)->toBeNull()
+        ->and(Play::count())->toBe(0);
+});

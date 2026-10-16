@@ -120,3 +120,91 @@ test('it reports unmatched items with a reason label', function () {
         ->and($summary['unmatched_items'][0])->toContain('The Matrix')
         ->and($summary['unmatched_items'][1])->toContain('Game of Thrones');
 });
+
+test('it recovers show key from grandparentKey when grandparentRatingKey is missing', function () {
+    app(IntegrationSettings::class)->setMany([
+        'plex.url' => 'http://plex.local:32400',
+        'plex.token' => 'plex-token',
+    ]);
+
+    Title::factory()->create(['type' => TitleType::Movie, 'tmdb_id' => 603]);
+    $show = Title::factory()->create(['type' => TitleType::Show, 'tmdb_id' => 1399]);
+    $season = Season::factory()->for($show, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($show, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $historyWithoutRatingKey = recentImportHistoryFixture();
+    unset($historyWithoutRatingKey['MediaContainer']['Metadata'][1]['grandparentRatingKey']);
+
+    Http::fake([
+        '*plex.local:32400/status/sessions/history/all*' => Http::response($historyWithoutRatingKey),
+        '*plex.local:32400/library/metadata/501*' => Http::response(importFixture('metadata_movie')),
+        '*plex.local:32400/library/metadata/800*' => Http::response(importFixture('metadata_show')),
+    ]);
+
+    $summary = app(ImportRecentHistory::class)->handle(Carbon::now()->subMinutes(20));
+
+    expect($summary['recorded'])->toBe(2)
+        ->and(Play::where('playable_type', 'episode')->where('playable_id', $episode->id)->exists())->toBeTrue();
+});
+
+test('it recovers show key from episode metadata when both grandparentRatingKey and grandparentKey are missing', function () {
+    app(IntegrationSettings::class)->setMany([
+        'plex.url' => 'http://plex.local:32400',
+        'plex.token' => 'plex-token',
+    ]);
+
+    Title::factory()->create(['type' => TitleType::Movie, 'tmdb_id' => 603]);
+    $show = Title::factory()->create(['type' => TitleType::Show, 'tmdb_id' => 1399]);
+    $season = Season::factory()->for($show, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($show, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    $historyWithoutKeys = recentImportHistoryFixture();
+    unset($historyWithoutKeys['MediaContainer']['Metadata'][1]['grandparentRatingKey']);
+    unset($historyWithoutKeys['MediaContainer']['Metadata'][1]['grandparentKey']);
+
+    Http::fake([
+        '*plex.local:32400/status/sessions/history/all*' => Http::response($historyWithoutKeys),
+        '*plex.local:32400/library/metadata/501*' => Http::response(importFixture('metadata_movie')),
+        '*plex.local:32400/library/metadata/901*' => Http::response(importFixture('metadata_episode')),
+        '*plex.local:32400/library/metadata/800*' => Http::response(importFixture('metadata_show')),
+    ]);
+
+    $summary = app(ImportRecentHistory::class)->handle(Carbon::now()->subMinutes(20));
+
+    expect($summary['recorded'])->toBe(2)
+        ->and(Play::where('playable_type', 'episode')->where('playable_id', $episode->id)->exists())->toBeTrue();
+
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), '/library/metadata/901'));
+});
+
+test('it handles episode metadata fetch failure gracefully', function () {
+    app(IntegrationSettings::class)->setMany([
+        'plex.url' => 'http://plex.local:32400',
+        'plex.token' => 'plex-token',
+    ]);
+
+    Title::factory()->create(['type' => TitleType::Movie, 'tmdb_id' => 603]);
+
+    $historyWithoutKeys = recentImportHistoryFixture();
+    unset($historyWithoutKeys['MediaContainer']['Metadata'][1]['grandparentRatingKey']);
+    unset($historyWithoutKeys['MediaContainer']['Metadata'][1]['grandparentKey']);
+
+    Http::fake([
+        '*plex.local:32400/status/sessions/history/all*' => Http::response($historyWithoutKeys),
+        '*plex.local:32400/library/metadata/501*' => Http::response(importFixture('metadata_movie')),
+        '*plex.local:32400/library/metadata/901*' => Http::response(null, 500),
+    ]);
+
+    $summary = app(ImportRecentHistory::class)->handle(Carbon::now()->subMinutes(20));
+
+    expect($summary['unmatched'])->toBe(1)
+        ->and($summary['recorded'])->toBe(1);
+
+    Http::assertNotSent(fn ($request): bool => rtrim((string) parse_url($request->url(), PHP_URL_PATH), '/') === '/library/metadata');
+});

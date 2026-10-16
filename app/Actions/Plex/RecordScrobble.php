@@ -198,10 +198,28 @@ class RecordScrobble
         }
 
         if ($grandparentTitle !== null) {
-            return Title::query()
+            $show = Title::query()
                 ->where('type', TitleType::Show)
                 ->where('name', $grandparentTitle)
                 ->first();
+
+            if ($show !== null) {
+                return $show;
+            }
+
+            $strippedTitle = $this->stripTitleSuffix($grandparentTitle);
+
+            if ($strippedTitle !== null) {
+                $results = Title::query()
+                    ->where('type', TitleType::Show)
+                    ->where('name', $strippedTitle)
+                    ->limit(2)
+                    ->get();
+
+                if ($results->count() === 1) {
+                    return $results->first();
+                }
+            }
         }
 
         return null;
@@ -270,6 +288,21 @@ class RecordScrobble
         $showId = $data['tv_episode_results'][0]['show_id'] ?? null;
 
         return $showId !== null ? (int) $showId : null;
+    }
+
+    /**
+     * Strip trailing country code or year suffix from a title (e.g., "The Diplomat (US)" → "The Diplomat").
+     * Returns null if nothing was stripped.
+     */
+    private function stripTitleSuffix(string $title): ?string
+    {
+        $stripped = preg_replace('/\s*\(([A-Z]{2,3}|\d{4})\)\s*$/', '', $title);
+
+        if ($stripped === null || $stripped === $title) {
+            return null;
+        }
+
+        return trim($stripped);
     }
 
     /**

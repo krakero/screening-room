@@ -181,9 +181,19 @@ class PlexClient
                     continue;
                 }
 
+                // Extract grandparent_rating_key from grandparentRatingKey, or fall back to
+                // parsing grandparentKey ("/library/metadata/123" -> "123") when the former is
+                // missing (observed in some Plex configurations).
+                $grandparentRatingKey = null;
+                if (isset($item['grandparentRatingKey'])) {
+                    $grandparentRatingKey = (string) $item['grandparentRatingKey'];
+                } elseif (isset($item['grandparentKey'])) {
+                    $grandparentRatingKey = self::parseRatingKeyFromPath($item['grandparentKey']);
+                }
+
                 $entries[] = [
                     'rating_key' => (string) $item['ratingKey'],
-                    'grandparent_rating_key' => isset($item['grandparentRatingKey']) ? (string) $item['grandparentRatingKey'] : null,
+                    'grandparent_rating_key' => $grandparentRatingKey,
                     'viewed_at' => $viewedAt,
                     'type' => $item['type'] ?? null,
                     'title' => $item['title'] ?? '',
@@ -219,6 +229,27 @@ class PlexClient
         $metadata = $data['MediaContainer']['Metadata'][0] ?? [];
 
         return self::parseGuids($metadata['Guid'] ?? []);
+    }
+
+    /**
+     * The show rating key for an episode, extracted from its metadata. Falls back to parsing
+     * grandparentKey ("/library/metadata/123" -> "123") when grandparentRatingKey is missing.
+     */
+    public function episodeShowRatingKey(string $ratingKey): ?string
+    {
+        $data = $this->get("/library/metadata/{$ratingKey}");
+
+        $metadata = $data['MediaContainer']['Metadata'][0] ?? [];
+
+        if (isset($metadata['grandparentRatingKey'])) {
+            return (string) $metadata['grandparentRatingKey'];
+        }
+
+        if (isset($metadata['grandparentKey'])) {
+            return self::parseRatingKeyFromPath($metadata['grandparentKey']);
+        }
+
+        return null;
     }
 
     /**
@@ -386,6 +417,18 @@ class PlexClient
             'season_number' => isset($segments[1]) ? (int) $segments[1] : null,
             'episode_number' => isset($segments[2]) ? (int) $segments[2] : null,
         ];
+    }
+
+    /**
+     * Parse a rating key from a Plex path like "/library/metadata/123" -> "123".
+     */
+    private static function parseRatingKeyFromPath(string $path): ?string
+    {
+        if (preg_match('#^/library/metadata/(\d+)#', $path, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     /**

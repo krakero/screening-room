@@ -5,6 +5,7 @@ namespace App\Actions\Plex;
 use App\Services\Plex\PlexClient;
 use App\Support\IntegrationSettings;
 use Illuminate\Support\Carbon;
+use Throwable;
 
 class ImportRecentHistory
 {
@@ -40,10 +41,20 @@ class ImportRecentHistory
 
             $guids = $entry['type'] === 'movie' ? $this->plex->metadataGuids($entry['rating_key']) : [];
 
-            // A token-backed lookup on the show's own ratingKey gives its ids directly, so it's
-            // passed as `show_guids` (see RecordScrobble) rather than the episode's own `guids`.
-            $showGuids = $entry['type'] === 'episode' && $entry['grandparent_rating_key'] !== null
-                ? $this->plex->metadataGuids($entry['grandparent_rating_key'])
+            $grandparentRatingKey = $entry['grandparent_rating_key'];
+
+            // If the history entry lacks a grandparent_rating_key (even after PlexClient parsed
+            // grandparentKey), fall back to fetching the episode's own metadata.
+            if ($entry['type'] === 'episode' && $grandparentRatingKey === null) {
+                try {
+                    $grandparentRatingKey = $this->plex->episodeShowRatingKey($entry['rating_key']);
+                } catch (Throwable) {
+                    $grandparentRatingKey = null;
+                }
+            }
+
+            $showGuids = $entry['type'] === 'episode' && filled($grandparentRatingKey)
+                ? $this->plex->metadataGuids($grandparentRatingKey)
                 : [];
 
             $result = $this->recordScrobble->attempt([
