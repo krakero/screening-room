@@ -28,15 +28,27 @@ class UpdateChecker
         $current = AppVersion::current();
         $cacheKey = "updates.available.{$current->channel->value}";
 
-        if ($force) {
-            Cache::forget($cacheKey);
+        if (! $force && Cache::has($cacheKey)) {
+            $cached = Cache::get($cacheKey);
+
+            if ($cached === false) {
+                return null;
+            }
+
+            // Anything else unreadable (e.g. an object cached by an older version, which
+            // unserializes as __PHP_Incomplete_Class) falls through to a fresh fetch.
+            if (is_array($cached) && ($update = AvailableUpdate::fromArray($cached)) !== null) {
+                return $update;
+            }
         }
 
-        return Cache::remember(
-            $cacheKey,
-            self::CACHE_TTL_SECONDS,
-            fn () => $this->fetchUpdate($current)
-        );
+        $update = $this->fetchUpdate($current);
+
+        // Only plain data is cached (`cache.serializable_classes` is false); `false` marks
+        // "no update" so it's distinguishable from a missing entry.
+        Cache::put($cacheKey, $update?->toArray() ?? false, self::CACHE_TTL_SECONDS);
+
+        return $update;
     }
 
     /**
