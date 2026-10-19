@@ -40,6 +40,9 @@ optional. Common overrides:
 | --- | --- | --- |
 | `APP_PORT` | `7331` | Host port the `app` service binds |
 | `APP_URL` | `http://localhost:7331` | Public URL (used for webhook URLs, links) |
+| `TRUSTED_PROXIES` | loopback + private ranges | Proxies whose `X-Forwarded-*` headers are honoured; `*` trusts any caller. See [Behind a reverse proxy or tunnel](#behind-a-reverse-proxy-or-tunnel) |
+| `APP_FORCE_HTTPS` | `false` | Always generate `https://` URLs; only for proxies that don't send `X-Forwarded-Proto` |
+| `SESSION_SECURE_COOKIE` | *(auto)* | Set `true` to send the session cookie over HTTPS only |
 | `APP_KEY` | *(auto-generated)* | Generated on first boot and saved to `/app/storage/app/app.key` if missing |
 | `DB_DATABASE` | `screening_room` | |
 | `DB_USERNAME` | `screening_room` | |
@@ -141,6 +144,42 @@ Same compose file either way — the difference is networking and TLS:
 
 Either way, set `APP_URL` to the externally-reachable HTTPS URL — it's used
 to build the Plex webhook URL below and any absolute links.
+
+### Behind a reverse proxy or tunnel
+
+When something else terminates HTTPS (Tailscale Funnel/Serve, Cloudflare
+Tunnel, Caddy, nginx, Traefik), it forwards plain HTTP to the container and
+describes the original request in `X-Forwarded-Proto` / `X-Forwarded-Host`.
+Laravel builds asset and route URLs from the *request*, not from `APP_URL`,
+so it has to trust those headers or it will emit `http://` asset links that
+browsers block as mixed content (unstyled pages, broken scripts).
+
+The default `TRUSTED_PROXIES` already trusts loopback and private address
+ranges, which covers a proxy on the same machine (it reaches the container
+from Docker's gateway address) or on your LAN. If your proxy connects from a
+public address, set `TRUSTED_PROXIES` to its IP/CIDR, or `*`.
+
+Example with Tailscale Funnel on the Docker host:
+
+```sh
+tailscale funnel --bg 7331
+```
+
+then in `.env`:
+
+```sh
+APP_URL=https://<machine>.<tailnet>.ts.net
+SESSION_SECURE_COOKIE=true
+```
+
+and `docker compose up -d` to apply. Cloudflare Tunnel is the same idea:
+point the tunnel's service at `http://localhost:7331` and set `APP_URL` to
+your public hostname.
+
+If a proxy doesn't send `X-Forwarded-Proto` at all, set `APP_FORCE_HTTPS=true`
+instead. That forces `https://` URLs for every request, so direct
+plain-HTTP access on the LAN (`http://192.168.x.x:7331`) will no longer load
+assets correctly.
 
 ## Plex webhook URL
 

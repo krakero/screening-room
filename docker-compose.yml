@@ -9,6 +9,10 @@ services:
     environment:
       APP_PORT: ${APP_PORT:-7331}
       APP_URL: ${APP_URL:-http://localhost:7331}
+      # Behind an HTTPS proxy or tunnel (Tailscale Funnel, Cloudflare Tunnel, Caddy...): see docs/deployment.md
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,fc00::/7}
+      APP_FORCE_HTTPS: ${APP_FORCE_HTTPS:-false}
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-}
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: ${APP_DEBUG:-false}
       LOG_CHANNEL: ${LOG_CHANNEL:-stderr}
