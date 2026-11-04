@@ -69,7 +69,7 @@ class SeerrClient implements MediaRequestService
      * (even for a title it doesn't know about yet) with a `mediaInfo` object that is null until
      * someone — this app or Seerr's own UI — has requested or added it.
      *
-     * @return array{available: bool, request_id: int|null, seerr_status: SeerrRequestStatus|null, declined: bool}|null
+     * @return array{available: bool, request_id: int|null, seerr_status: SeerrRequestStatus|null, declined: bool, seasons: array<int>}|null
      */
     public function mediaStatus(Title $title): ?array
     {
@@ -93,12 +93,55 @@ class SeerrClient implements MediaRequestService
         $latestRequest = collect(data_get($mediaInfo, 'requests', []))->last();
         $requestStatus = data_get($latestRequest, 'status');
 
+        $seasons = $this->deriveSeasons($title, $mediaInfo);
+
         return [
             'available' => in_array($status, [4, 5], true),
             'request_id' => data_get($latestRequest, 'id') ?? data_get($mediaInfo, 'id'),
             'seerr_status' => $requestStatus !== null ? SeerrRequestStatus::fromSeerr((int) $requestStatus) : null,
             'declined' => (int) $requestStatus === 3,
+            'seasons' => $seasons,
         ];
+    }
+
+    /**
+     * Derives the season numbers Seerr knows about for a show: seasons with status 2–5
+     * plus seasons from non-declined requests. Returns [] for movies.
+     *
+     * @param  array<string, mixed>  $mediaInfo
+     * @return array<int>
+     */
+    private function deriveSeasons(Title $title, array $mediaInfo): array
+    {
+        if ($title->isMovie()) {
+            return [];
+        }
+
+        $seasons = [];
+
+        foreach (data_get($mediaInfo, 'seasons', []) as $season) {
+            $seasonNum = (int) data_get($season, 'seasonNumber');
+            $seasonStatus = (int) data_get($season, 'status');
+            if ($seasonNum > 0 && in_array($seasonStatus, [2, 3, 4, 5], true)) {
+                $seasons[] = $seasonNum;
+            }
+        }
+
+        foreach (data_get($mediaInfo, 'requests', []) as $request) {
+            if ((int) data_get($request, 'status') !== 3) {
+                foreach (data_get($request, 'seasons', []) as $season) {
+                    $seasonNum = (int) data_get($season, 'seasonNumber');
+                    if ($seasonNum > 0) {
+                        $seasons[] = $seasonNum;
+                    }
+                }
+            }
+        }
+
+        $seasons = array_values(array_unique($seasons));
+        sort($seasons);
+
+        return $seasons;
     }
 
     protected function configured(): bool

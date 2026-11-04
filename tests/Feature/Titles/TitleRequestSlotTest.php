@@ -177,6 +177,67 @@ test('a title not on Plex with Seerr unconfigured shows nothing in the slot', fu
     $response->assertDontSee(__('Watch on Plex'));
 });
 
+test('a show on Plex with Seerr configured shows both Watch on Plex and Request more seasons… in the slot', function () {
+    $this->actingAs(User::factory()->create());
+    configureSeerrForRequestSlot();
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local:32400', 'plex.token' => 'token']);
+    Http::preventStrayRequests();
+
+    $title = Title::factory()->show()->create(['tmdb_id' => 603, 'imdb_id' => 'tt0133093']);
+    $season = Season::factory()->for($title, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($title, 'title')->for($season, 'season')->create([
+        'season_number' => 1,
+        'episode_number' => 1,
+        'air_date' => now()->subDay(),
+    ]);
+    $episode->plexItem()->create(['rating_key' => '901', 'machine_identifier' => 'abc123def456', 'checked_at' => now()->subDays(30)]);
+
+    $response = $this->get(route('titles.show', $title));
+
+    $response->assertOk();
+    $response->assertSee('Watch on Plex');
+    $response->assertSee(__('Request more seasons…'));
+});
+
+test('a movie on Plex with Seerr configured shows Watch on Plex but not Request more seasons… in the slot', function () {
+    $this->actingAs(User::factory()->create());
+    configureSeerrForRequestSlot();
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local:32400', 'plex.token' => 'token']);
+    Http::preventStrayRequests();
+
+    PlexLibraryItem::factory()->create([
+        'plex_rating_key' => '501',
+        'machine_identifier' => 'abc123def456',
+        'type' => 'movie',
+        'tmdb_id' => 603,
+        'imdb_id' => 'tt0133093',
+    ]);
+
+    $title = Title::factory()->movie()->create(['tmdb_id' => 603, 'imdb_id' => 'tt0133093']);
+
+    $response = $this->get(route('titles.show', $title));
+
+    $response->assertOk();
+    $response->assertSee('Watch on Plex');
+    $response->assertDontSee(__('Request more seasons…'));
+});
+
+test('a show not on Plex shows Request seasons… but not Request more seasons… in the slot', function () {
+    $this->actingAs(User::factory()->create());
+    configureSeerrForRequestSlot();
+    Http::preventStrayRequests();
+
+    $title = Title::factory()->show()->create();
+    Season::factory()->for($title)->create(['season_number' => 1]);
+
+    $response = $this->get(route('titles.show', $title));
+
+    $response->assertOk();
+    $response->assertDontSee('Watch on Plex');
+    $response->assertSee(__('Request seasons…'));
+    $response->assertDontSee(__('Request more seasons…'));
+});
+
 test('clicking Request dispatches SubmitTitleRequest with the chosen seasons and makes no synchronous Seerr call', function () {
     $this->actingAs(User::factory()->create());
     configureSeerrForRequestSlot();

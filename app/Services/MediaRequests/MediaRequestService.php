@@ -29,7 +29,7 @@ interface MediaRequestService
      * request already made outside this app (or already available) isn't duplicated.
      * Returns null when Seerr has no record of the title at all.
      *
-     * @return array{available: bool, request_id: int|null, seerr_status: SeerrRequestStatus|null, declined: bool}|null
+     * @return array{available: bool, request_id: int|null, seerr_status: SeerrRequestStatus|null, declined: bool, seasons: array<int>}|null
      */
     public function mediaStatus(Title $title): ?array;
 }

@@ -651,6 +651,9 @@ new #[Layout('layouts::app', ['fullBleed' => true])] class extends Component
                             </flux:button>
                         @elseif ($this->plexPlayUrl)
                             <x-media.plex-play-button :url="$this->plexPlayUrl" size="sm" branded />
+                            @if ($title->isShow())
+                                <livewire:request-title :title="$title" :more-only="true" :key="'request-more-'.$title->id" />
+                            @endif
                         @else
                             <livewire:request-title :title="$title" :key="'request-title-'.$title->id" />
                         @endif

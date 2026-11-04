@@ -133,3 +133,91 @@ test('mediaStatus returns null when seerr is not configured', function () {
 
     expect(app(SeerrClient::class)->mediaStatus($title))->toBeNull();
 });
+
+test('mediaStatus returns empty seasons for movies', function () {
+    configureSeerr();
+
+    $title = Title::factory()->movie()->create(['tmdb_id' => 603]);
+
+    Http::fake(['seerr.test/api/v1/movie/603' => Http::response([
+        'id' => 603,
+        'mediaInfo' => ['status' => 5, 'requests' => [['id' => 11, 'status' => 2, 'seasons' => [['seasonNumber' => 1]]]]],
+    ])]);
+
+    $result = app(SeerrClient::class)->mediaStatus($title);
+
+    expect($result['seasons'])->toBe([]);
+});
+
+test('mediaStatus derives seasons from mediaInfo.seasons with status 2-5', function () {
+    configureSeerr();
+
+    $title = Title::factory()->show()->create(['tmdb_id' => 1396]);
+
+    Http::fake(['seerr.test/api/v1/tv/1396' => Http::response([
+        'id' => 1396,
+        'mediaInfo' => [
+            'status' => 3,
+            'requests' => [],
+            'seasons' => [
+                ['seasonNumber' => 1, 'status' => 1], // unknown — excluded
+                ['seasonNumber' => 2, 'status' => 2], // pending — included
+                ['seasonNumber' => 3, 'status' => 3], // processing — included
+                ['seasonNumber' => 4, 'status' => 4], // partially available — included
+                ['seasonNumber' => 5, 'status' => 5], // available — included
+                ['seasonNumber' => 0, 'status' => 5], // season 0 (specials) — excluded
+            ],
+        ],
+    ])]);
+
+    $result = app(SeerrClient::class)->mediaStatus($title);
+
+    expect($result['seasons'])->toBe([2, 3, 4, 5]);
+});
+
+test('mediaStatus derives seasons from non-declined requests', function () {
+    configureSeerr();
+
+    $title = Title::factory()->show()->create(['tmdb_id' => 1396]);
+
+    Http::fake(['seerr.test/api/v1/tv/1396' => Http::response([
+        'id' => 1396,
+        'mediaInfo' => [
+            'status' => 2,
+            'seasons' => [],
+            'requests' => [
+                ['id' => 10, 'status' => 1, 'seasons' => [['seasonNumber' => 1], ['seasonNumber' => 2]]],
+                ['id' => 11, 'status' => 2, 'seasons' => [['seasonNumber' => 3]]],
+                ['id' => 12, 'status' => 3, 'seasons' => [['seasonNumber' => 4]]], // declined — excluded
+            ],
+        ],
+    ])]);
+
+    $result = app(SeerrClient::class)->mediaStatus($title);
+
+    expect($result['seasons'])->toBe([1, 2, 3]);
+});
+
+test('mediaStatus unions seasons from both sources and deduplicates', function () {
+    configureSeerr();
+
+    $title = Title::factory()->show()->create(['tmdb_id' => 1396]);
+
+    Http::fake(['seerr.test/api/v1/tv/1396' => Http::response([
+        'id' => 1396,
+        'mediaInfo' => [
+            'status' => 4,
+            'seasons' => [
+                ['seasonNumber' => 1, 'status' => 5],
+                ['seasonNumber' => 2, 'status' => 4],
+            ],
+            'requests' => [
+                ['id' => 20, 'status' => 1, 'seasons' => [['seasonNumber' => 2], ['seasonNumber' => 3]]],
+            ],
+        ],
+    ])]);
+
+    $result = app(SeerrClient::class)->mediaStatus($title);
+
+    expect($result['seasons'])->toBe([1, 2, 3]);
+});

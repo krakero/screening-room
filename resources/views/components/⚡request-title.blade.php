@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Requests\RequestTitle;
 use App\Enums\LibraryState;
 use App\Jobs\SubmitTitleRequest;
 use App\Models\LibraryStatus;
@@ -16,6 +17,8 @@ new class extends Component
 {
     public Title $title;
 
+    public bool $moreOnly = false;
+
     /** @var array<int, int> */
     public array $selectedSeasons = [];
 
@@ -24,7 +27,7 @@ new class extends Component
         $this->title = $title;
 
         if ($title->isShow()) {
-            $this->selectedSeasons = $this->requestableSeasons->pluck('season_number')->all();
+            $this->selectedSeasons = $this->unrequestedSeasons;
         }
     }
 
@@ -41,6 +44,26 @@ new class extends Component
         return $this->title->seasons->reject(fn ($season) => $season->season_number === 0)->values();
     }
 
+    /** @return array<int, int> */
+    #[Computed]
+    public function alreadyRequestedSeasons(): array
+    {
+        return $this->status?->requested_seasons ?? [];
+    }
+
+    /** @return array<int, int> */
+    #[Computed]
+    public function unrequestedSeasons(): array
+    {
+        $already = $this->alreadyRequestedSeasons;
+
+        return $this->requestableSeasons
+            ->pluck('season_number')
+            ->filter(fn ($n) => ! in_array($n, $already))
+            ->values()
+            ->all();
+    }
+
     #[Computed]
     public function status(): ?LibraryStatus
     {
@@ -55,17 +78,24 @@ new class extends Component
 
     public function openRequestModal(): void
     {
+        if ($this->title->isShow()) {
+            app(RequestTitle::class)->refreshSeasons($this->title);
+            $this->title->unsetRelation('libraryStatus');
+            unset($this->status, $this->alreadyRequestedSeasons, $this->unrequestedSeasons);
+            $this->selectedSeasons = $this->unrequestedSeasons;
+        }
+
         if ($this->ownership->isOwned()) {
-            \Flux\Flux::modal('confirm-request-owned-' . $this->getId())->show();
+            \Flux\Flux::modal('confirm-request-owned-'.$this->getId())->show();
         } else {
-            \Flux\Flux::modal('request-title-' . $this->title->id)->show();
+            \Flux\Flux::modal('request-title-'.$this->title->id)->show();
         }
     }
 
     public function confirmRequestOwned(): void
     {
-        \Flux\Flux::modal('confirm-request-owned-' . $this->getId())->close();
-        \Flux\Flux::modal('request-title-' . $this->title->id)->show();
+        \Flux\Flux::modal('confirm-request-owned-'.$this->getId())->close();
+        \Flux\Flux::modal('request-title-'.$this->title->id)->show();
     }
 
     /**
@@ -85,12 +115,18 @@ new class extends Component
             ]);
         }
 
-        LibraryStatus::updateOrCreate(
-            ['title_id' => $this->title->id],
-            ['state' => LibraryState::Pending],
-        );
+        if (! $this->status || $this->status->state !== LibraryState::Available) {
+            LibraryStatus::updateOrCreate(
+                ['title_id' => $this->title->id],
+                ['state' => LibraryState::Pending],
+            );
+        }
 
-        SubmitTitleRequest::dispatch($this->title, $this->selectedSeasons);
+        $seasonsToDispatch = $this->title->isShow()
+            ? array_values(array_diff($this->selectedSeasons, $this->alreadyRequestedSeasons))
+            : $this->selectedSeasons;
+
+        SubmitTitleRequest::dispatch($this->title, $seasonsToDispatch);
 
         unset($this->status);
     }
@@ -107,6 +143,24 @@ new class extends Component
 <div>
     @if (! app(IntegrationSettings::class)->configured('seerr.url', 'seerr.api_key'))
         {{-- Seerr isn't configured; nothing to show here. --}}
+    @elseif ($moreOnly)
+        @if ($title->isShow() && (count($this->unrequestedSeasons) > 0 || $this->status?->requested_seasons === null))
+            <div x-data="optimistic(null)">
+                <template x-if="value === null">
+                    <flux:button wire:click="openRequestModal" size="sm" variant="filled" icon="plus-circle">
+                        {{ __('Request more seasons…') }}
+                    </flux:button>
+                </template>
+
+                <template x-if="value === 'requested'">
+                    <flux:button size="sm" variant="filled" icon="clock" disabled>{{ __('Requested') }}</flux:button>
+                </template>
+
+                @include('components.request-title._modals')
+            </div>
+        @else
+            <div></div>
+        @endif
     @elseif ($this->status && $this->status->state !== null)
         @php
             $requestStatusConfig = match ($this->status->state->value) {
@@ -141,9 +195,32 @@ new class extends Component
                     </template>
                 </div>
             @else
-                <flux:button size="sm" variant="filled" icon="{{ $requestStatusConfig['icon'] }}" disabled>
-                    {{ $requestStatusConfig['label'] }}
-                </flux:button>
+                @php $showMoreButton = $title->isShow() && (count($this->unrequestedSeasons) > 0 || $this->status->requested_seasons === null); @endphp
+                @if ($showMoreButton)
+                    <div x-data="optimistic(null)">
+                        <div class="flex items-center gap-2">
+                            <flux:button size="sm" variant="filled" icon="{{ $requestStatusConfig['icon'] }}" disabled>
+                                {{ $requestStatusConfig['label'] }}
+                            </flux:button>
+
+                            <template x-if="value === null">
+                                <flux:button wire:click="openRequestModal" size="sm" variant="filled" icon="plus-circle">
+                                    {{ __('Request more seasons…') }}
+                                </flux:button>
+                            </template>
+
+                            <template x-if="value === 'requested'">
+                                <flux:button size="sm" variant="filled" icon="clock" disabled>{{ __('Requested') }}</flux:button>
+                            </template>
+                        </div>
+
+                        @include('components.request-title._modals')
+                    </div>
+                @else
+                    <flux:button size="sm" variant="filled" icon="{{ $requestStatusConfig['icon'] }}" disabled>
+                        {{ $requestStatusConfig['label'] }}
+                    </flux:button>
+                @endif
             @endif
         @endif
     @else
@@ -158,60 +235,7 @@ new class extends Component
                 <flux:button size="sm" variant="filled" icon="clock" disabled>{{ __('Requested') }}</flux:button>
             </template>
 
-            <flux:modal name="confirm-request-owned-{{ $this->getId() }}" class="md:w-96">
-                <div class="space-y-6">
-                    <div>
-                        <flux:heading size="lg">{{ __('Request anyway?') }}</flux:heading>
-                        <flux:text class="mt-2">
-                            {{ __('You already own this (:label). Request it anyway?', ['label' => $this->ownership->label()]) }}
-                        </flux:text>
-                    </div>
-
-                    <div class="flex justify-end gap-2">
-                        <flux:modal.close>
-                            <flux:button variant="filled">{{ __('Cancel') }}</flux:button>
-                        </flux:modal.close>
-
-                        <flux:button variant="primary" wire:click="confirmRequestOwned">
-                            {{ __('Request anyway') }}
-                        </flux:button>
-                    </div>
-                </div>
-            </flux:modal>
-
-            <flux:modal name="request-title-{{ $title->id }}" focusable class="max-w-md">
-                <div class="flex flex-col gap-4">
-                    <flux:heading size="lg">{{ __('Request :name', ['name' => $title->name]) }}</flux:heading>
-
-                    @if ($title->isShow())
-                        <div class="flex flex-col gap-2">
-                            <flux:subheading>{{ __('Seasons') }}</flux:subheading>
-
-                            @foreach ($this->requestableSeasons as $season)
-                                <flux:checkbox
-                                    wire:model="selectedSeasons"
-                                    value="{{ $season->season_number }}"
-                                    :label="__('Season :number', ['number' => $season->season_number])"
-                                />
-                            @endforeach
-                        </div>
-                    @endif
-
-                    <div class="flex justify-end gap-2">
-                        <flux:modal.close>
-                            <flux:button variant="filled">{{ __('Cancel') }}</flux:button>
-                        </flux:modal.close>
-
-                        <flux:button
-                            variant="primary"
-                            :disabled="$title->isShow() && empty($selectedSeasons)"
-                            x-on:click="$flux.modal('request-title-{{ $title->id }}').close(); set('requested', () => $wire.request())"
-                        >
-                            {{ __('Send request') }}
-                        </flux:button>
-                    </div>
-                </div>
-            </flux:modal>
+            @include('components.request-title._modals')
         </div>
     @endif
 </div>

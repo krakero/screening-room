@@ -19,10 +19,11 @@ use Illuminate\Support\Carbon;
  * @property SeerrRequestStatus|null $seerr_status
  * @property int|null $sonarr_id
  * @property int|null $radarr_id
+ * @property array<int>|null $requested_seasons
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['title_id', 'state', 'seerr_request_id', 'seerr_status', 'sonarr_id', 'radarr_id'])]
+#[Fillable(['title_id', 'state', 'seerr_request_id', 'seerr_status', 'sonarr_id', 'radarr_id', 'requested_seasons'])]
 class LibraryStatus extends Model
 {
     /** @use HasFactory<LibraryStatusFactory> */
@@ -44,6 +45,7 @@ class LibraryStatus extends Model
         return [
             'state' => LibraryState::class,
             'seerr_status' => SeerrRequestStatus::class,
+            'requested_seasons' => 'array',
         ];
     }
 }
