@@ -36,6 +36,9 @@ UPDATER_DIR="/app/storage/app/updater"
 MYSQL_CLIENT_OPTS="--skip-ssl"
 mkdir -p "$UPDATER_DIR"
 mkdir -p "/app/storage/app/backups"
+chown www-data:www-data "$UPDATER_DIR" "/app/storage/app/backups"
+chmod 755 "$UPDATER_DIR" "/app/storage/app/backups"
+find "$UPDATER_DIR" -maxdepth 1 -name '*.json' -exec chmod 644 {} +
 
 INSTALLED_VERSION_FILE="$UPDATER_DIR/installed-version"
 BOOT_JSON="$UPDATER_DIR/boot.json"

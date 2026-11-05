@@ -50,6 +50,8 @@ return [
         'updater' => [
             'driver' => 'local',
             'root' => storage_path('app/updater'),
+            'visibility' => 'public',
+            'directory_visibility' => 'public',
             'throw' => false,
             'report' => false,
         ],
