@@ -14,6 +14,9 @@ new #[PageTitle('Discover')] class extends Component
     #[Session(key: 'discover.hide_watched')]
     public bool $hideWatched = true;
 
+    #[Session(key: 'discover.hide_re_releases')]
+    public bool $hideReReleases = false;
+
     /**
      * @return array{items: array<int, array<string, mixed>>, error: ?string}
      */
@@ -91,6 +94,22 @@ new #[PageTitle('Discover')] class extends Component
         return collect($items)->contains(fn (array $item): bool => ! $item['watched']);
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    public function anyNotReRelease(array $items): bool
+    {
+        return collect($items)->contains(fn (array $item): bool => ! $item['is_re_release']);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    public function anyNeitherWatchedNorReRelease(array $items): bool
+    {
+        return collect($items)->contains(fn (array $item): bool => ! $item['watched'] && ! $item['is_re_release']);
+    }
+
     public function anyItemsLoaded(): bool
     {
         return $this->trending['items'] !== []
@@ -105,6 +124,22 @@ new #[PageTitle('Discover')] class extends Component
             || $this->anyNotWatched($this->newMovies['items'])
             || $this->anyNotWatched($this->newEpisodes['items'])
             || collect($this->recommendations['shelves'])->contains(fn (array $shelf): bool => $this->anyNotWatched($shelf['items']));
+    }
+
+    public function anyItemNotReReleaseAnywhere(): bool
+    {
+        return $this->anyNotReRelease($this->trending['items'])
+            || $this->anyNotReRelease($this->newMovies['items'])
+            || $this->anyNotReRelease($this->newEpisodes['items'])
+            || collect($this->recommendations['shelves'])->contains(fn (array $shelf): bool => $this->anyNotReRelease($shelf['items']));
+    }
+
+    public function anyItemNeitherWatchedNorReReleaseAnywhere(): bool
+    {
+        return $this->anyNeitherWatchedNorReRelease($this->trending['items'])
+            || $this->anyNeitherWatchedNorReRelease($this->newMovies['items'])
+            || $this->anyNeitherWatchedNorReRelease($this->newEpisodes['items'])
+            || collect($this->recommendations['shelves'])->contains(fn (array $shelf): bool => $this->anyNeitherWatchedNorReRelease($shelf['items']));
     }
 
     /**
@@ -141,8 +176,11 @@ new #[PageTitle('Discover')] class extends Component
 
 <div
     class="flex h-full w-full flex-1 flex-col gap-8 rounded-xl"
-    x-data="{ hideWatched: localStorage.getItem('discover.hideWatched') === null ? {{ $hideWatched ? 'true' : 'false' }} : localStorage.getItem('discover.hideWatched') === 'true' }"
-    x-effect="localStorage.setItem('discover.hideWatched', hideWatched)"
+    x-data="{
+        hideWatched: localStorage.getItem('discover.hideWatched') === null ? {{ $hideWatched ? 'true' : 'false' }} : localStorage.getItem('discover.hideWatched') === 'true',
+        hideReReleases: localStorage.getItem('discover.hideReReleases') === null ? {{ $hideReReleases ? 'true' : 'false' }} : localStorage.getItem('discover.hideReReleases') === 'true'
+    }"
+    x-effect="localStorage.setItem('discover.hideWatched', hideWatched); localStorage.setItem('discover.hideReReleases', hideReReleases)"
 >
     <div class="flex flex-wrap items-end justify-between gap-4">
         <div class="flex flex-col gap-0.5">
@@ -150,10 +188,17 @@ new #[PageTitle('Discover')] class extends Component
             <flux:subheading>{{ __('Popular and new movies and shows from TMDB.') }}</flux:subheading>
         </div>
 
-        <label class="flex items-center gap-2 text-sm text-ink-muted">
-            <flux:switch :checked="$hideWatched" x-on:input="hideWatched = $event.target.checked" x-effect="$el.checked = hideWatched" />
-            {{ __("Hide what I've seen") }}
-        </label>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <label class="flex items-center gap-2 text-sm text-ink-muted">
+                <flux:switch :checked="$hideWatched" x-on:input="hideWatched = $event.target.checked" x-effect="$el.checked = hideWatched" />
+                {{ __("Hide what I've seen") }}
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-ink-muted">
+                <flux:switch :checked="$hideReReleases" x-on:input="hideReReleases = $event.target.checked" x-effect="$el.checked = hideReReleases" />
+                {{ __('Hide re-releases') }}
+            </label>
+        </div>
     </div>
 
     <div class="flex flex-col gap-3">
@@ -161,9 +206,9 @@ new #[PageTitle('Discover')] class extends Component
             <x-media.section-header :heading="__('Trending this week')" />
             <flux:callout variant="danger" icon="exclamation-triangle" :heading="$this->trending['error']" />
         @elseif ($this->trending['items'] !== [])
-            <x-media.poster-row :heading="__('Trending this week')" x-show="!hideWatched || {{ $this->anyNotWatched($this->trending['items']) ? 'true' : 'false' }}">
+            <x-media.poster-row :heading="__('Trending this week')" x-show="(!hideWatched && !hideReReleases) || (hideWatched && !hideReReleases && {{ $this->anyNotWatched($this->trending['items']) ? 'true' : 'false' }}) || (!hideWatched && hideReReleases && {{ $this->anyNotReRelease($this->trending['items']) ? 'true' : 'false' }}) || (hideWatched && hideReReleases && {{ $this->anyNeitherWatchedNorReRelease($this->trending['items']) ? 'true' : 'false' }})">
                 @foreach ($this->trending['items'] as $item)
-                    <x-discover.card :item="$item" wire:key="trending-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}" />
+                    <x-discover.card :item="$item" wire:key="trending-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="(!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}) && (!hideReReleases || {{ $item['is_re_release'] ? 'false' : 'true' }})" />
                 @endforeach
             </x-media.poster-row>
         @endif
@@ -174,9 +219,9 @@ new #[PageTitle('Discover')] class extends Component
             <x-media.section-header :heading="__('In theaters & coming soon')" />
             <flux:callout variant="danger" icon="exclamation-triangle" :heading="$this->newMovies['error']" />
         @elseif ($this->newMovies['items'] !== [])
-            <x-media.poster-row :heading="__('In theaters & coming soon')" x-show="!hideWatched || {{ $this->anyNotWatched($this->newMovies['items']) ? 'true' : 'false' }}">
+            <x-media.poster-row :heading="__('In theaters & coming soon')" x-show="(!hideWatched && !hideReReleases) || (hideWatched && !hideReReleases && {{ $this->anyNotWatched($this->newMovies['items']) ? 'true' : 'false' }}) || (!hideWatched && hideReReleases && {{ $this->anyNotReRelease($this->newMovies['items']) ? 'true' : 'false' }}) || (hideWatched && hideReReleases && {{ $this->anyNeitherWatchedNorReRelease($this->newMovies['items']) ? 'true' : 'false' }})">
                 @foreach ($this->newMovies['items'] as $item)
-                    <x-discover.card :item="$item" wire:key="new-movies-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}" />
+                    <x-discover.card :item="$item" wire:key="new-movies-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="(!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}) && (!hideReReleases || {{ $item['is_re_release'] ? 'false' : 'true' }})" />
                 @endforeach
             </x-media.poster-row>
         @endif
@@ -187,9 +232,9 @@ new #[PageTitle('Discover')] class extends Component
             <x-media.section-header :heading="__('New episodes this week')" />
             <flux:callout variant="danger" icon="exclamation-triangle" :heading="$this->newEpisodes['error']" />
         @elseif ($this->newEpisodes['items'] !== [])
-            <x-media.poster-row :heading="__('New episodes this week')" x-show="!hideWatched || {{ $this->anyNotWatched($this->newEpisodes['items']) ? 'true' : 'false' }}">
+            <x-media.poster-row :heading="__('New episodes this week')" x-show="(!hideWatched && !hideReReleases) || (hideWatched && !hideReReleases && {{ $this->anyNotWatched($this->newEpisodes['items']) ? 'true' : 'false' }}) || (!hideWatched && hideReReleases && {{ $this->anyNotReRelease($this->newEpisodes['items']) ? 'true' : 'false' }}) || (hideWatched && hideReReleases && {{ $this->anyNeitherWatchedNorReRelease($this->newEpisodes['items']) ? 'true' : 'false' }})">
                 @foreach ($this->newEpisodes['items'] as $item)
-                    <x-discover.card :item="$item" wire:key="new-episodes-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}" />
+                    <x-discover.card :item="$item" wire:key="new-episodes-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="(!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}) && (!hideReReleases || {{ $item['is_re_release'] ? 'false' : 'true' }})" />
                 @endforeach
             </x-media.poster-row>
         @endif
@@ -203,9 +248,9 @@ new #[PageTitle('Discover')] class extends Component
             @foreach ($this->recommendations['shelves'] as $shelf)
                 @continue ($shelf['items'] === [])
 
-                <x-media.poster-row :heading="$shelf['heading']" x-show="!hideWatched || {{ $this->anyNotWatched($shelf['items']) ? 'true' : 'false' }}">
+                <x-media.poster-row :heading="$shelf['heading']" x-show="(!hideWatched && !hideReReleases) || (hideWatched && !hideReReleases && {{ $this->anyNotWatched($shelf['items']) ? 'true' : 'false' }}) || (!hideWatched && hideReReleases && {{ $this->anyNotReRelease($shelf['items']) ? 'true' : 'false' }}) || (hideWatched && hideReReleases && {{ $this->anyNeitherWatchedNorReRelease($shelf['items']) ? 'true' : 'false' }})">
                     @foreach ($shelf['items'] as $item)
-                        <x-discover.card :item="$item" wire:key="recs-{{ $loop->parent->index }}-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}" />
+                        <x-discover.card :item="$item" wire:key="recs-{{ $loop->parent->index }}-{{ $item['type'] }}-{{ $item['tmdb_id'] }}" x-show="(!hideWatched || {{ $item['watched'] ? 'false' : 'true' }}) && (!hideReReleases || {{ $item['is_re_release'] ? 'false' : 'true' }})" />
                     @endforeach
                 </x-media.poster-row>
             @endforeach
@@ -216,7 +261,7 @@ new #[PageTitle('Discover')] class extends Component
         <x-media.empty-state
             icon="film"
             :heading="__('Nothing new to discover')"
-            x-show="{{ $this->anyItemsLoaded() ? 'false' : 'true' }} || (hideWatched && {{ $this->anyItemNotWatchedAnywhere() ? 'false' : 'true' }})"
+            x-show="{{ $this->anyItemsLoaded() ? 'false' : 'true' }} || (hideWatched && !hideReReleases && {{ $this->anyItemNotWatchedAnywhere() ? 'false' : 'true' }}) || (!hideWatched && hideReReleases && {{ $this->anyItemNotReReleaseAnywhere() ? 'false' : 'true' }}) || (hideWatched && hideReReleases && {{ $this->anyItemNeitherWatchedNorReReleaseAnywhere() ? 'false' : 'true' }})"
         >
             {{ __("You're all caught up. Check back later for new titles.") }}
         </x-media.empty-state>

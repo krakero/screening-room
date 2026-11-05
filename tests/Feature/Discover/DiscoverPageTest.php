@@ -111,8 +111,99 @@ test('hide what I have seen filters a watched title client-side, without a Livew
         ->assertSee('The Matrix')
         ->assertSee('Breaking Bad')
         ->assertDontSee('wire:model.live="hideWatched"', false)
-        ->assertSee('wire:key="trending-movie-603" x-show="!hideWatched || true"', false)
-        ->assertSee('wire:key="trending-show-1396" x-show="!hideWatched || false"', false);
+        ->assertSee('wire:key="trending-movie-603" x-show="(!hideWatched || true) && (!hideReReleases || true)"', false)
+        ->assertSee('wire:key="trending-show-1396" x-show="(!hideWatched || false) && (!hideReReleases || true)"', false);
+});
+
+test('hide re-releases switch renders and defaults to false', function () {
+    $this->actingAs(User::factory()->create());
+
+    fakeAllDiscoverPageEndpoints();
+
+    Livewire::test('pages::discover')
+        ->assertSet('hideReReleases', false)
+        ->assertSee(__('Hide re-releases'));
+});
+
+test('hide re-releases produces combined visibility expressions for cards and rows', function () {
+    $this->actingAs(User::factory()->create());
+
+    Http::fake([
+        '*/trending/all/week*' => Http::response(discoverPageFixture('trending_all_week')),
+        '*/movie/now_playing*' => Http::response(discoverPageFixture('movie_now_playing_with_re_release')),
+        '*/movie/upcoming*' => Http::response(discoverPageFixture('movie_upcoming_empty')),
+        '*/tv/on_the_air*' => Http::response(discoverPageFixture('tv_on_the_air')),
+    ]);
+
+    Livewire::test('pages::discover')
+        ->assertSet('hideReReleases', false)
+        ->assertSee('The Devils')
+        ->assertSee('Fresh Release')
+        ->assertSee('hideReReleases', escape: false);
+});
+
+/**
+ * A now-playing payload holding only movies first released years ago, so every card on the
+ * theaters shelf is a re-release.
+ */
+function onlyReReleasesNowPlaying(): array
+{
+    return ['results' => [
+        ['id' => 7001, 'title' => 'Old Classic', 'release_date' => '1985-06-01', 'poster_path' => '/old-classic.jpg'],
+        ['id' => 7002, 'title' => 'Older Classic', 'release_date' => '1977-05-25', 'poster_path' => '/older-classic.jpg'],
+    ]];
+}
+
+test('a theaters row made up only of re-releases can hide when the switch is on', function () {
+    $this->actingAs(User::factory()->create());
+
+    Http::fake([
+        '*/trending/all/week*' => Http::response(['results' => []]),
+        '*/movie/now_playing*' => Http::response(onlyReReleasesNowPlaying()),
+        '*/movie/upcoming*' => Http::response(discoverPageFixture('movie_upcoming_empty')),
+        '*/tv/on_the_air*' => Http::response(['results' => []]),
+    ]);
+
+    // Every card is a re-release: the row stays visible with neither switch or with only
+    // hide-watched on, and hides whenever hide-re-releases is on.
+    Livewire::test('pages::discover')
+        ->assertSee('Old Classic')
+        ->assertSee('wire:key="new-movies-movie-7001" x-show="(!hideWatched || true) && (!hideReReleases || false)"', false)
+        ->assertSee('x-show="(!hideWatched && !hideReReleases) || (hideWatched && !hideReReleases && true) || (!hideWatched && hideReReleases && false) || (hideWatched && hideReReleases && false)"', false);
+});
+
+test('the empty state accounts for re-releases when only re-releases are loaded', function () {
+    $this->actingAs(User::factory()->create());
+
+    Http::fake([
+        '*/trending/all/week*' => Http::response(['results' => []]),
+        '*/movie/now_playing*' => Http::response(onlyReReleasesNowPlaying()),
+        '*/movie/upcoming*' => Http::response(discoverPageFixture('movie_upcoming_empty')),
+        '*/tv/on_the_air*' => Http::response(['results' => []]),
+    ]);
+
+    // Items are loaded, so the empty state shows only once hide-re-releases hides them all.
+    Livewire::test('pages::discover')
+        ->assertSee('x-show="false || (hideWatched && !hideReReleases && false) || (!hideWatched && hideReReleases && true) || (hideWatched && hideReReleases && true)"', false);
+});
+
+test('existing hide watched behavior is unchanged after adding hide re-releases', function () {
+    $this->actingAs(User::factory()->create());
+
+    fakeAllDiscoverPageEndpoints();
+
+    $show = Title::factory()->show()->create(['tmdb_id' => 1396, 'name' => 'Breaking Bad']);
+    $season = Season::factory()->for($show)->create();
+    $episode = Episode::factory()->for($season)->create(['title_id' => $show->id]);
+    Play::factory()->for($episode, 'playable')->create();
+
+    Http::fake(['*/tv/1396/recommendations*' => Http::response(['results' => []])]);
+
+    Livewire::test('pages::discover')
+        ->assertSet('hideWatched', true)
+        ->assertSet('hideReReleases', false)
+        ->assertSee('The Matrix')
+        ->assertSee('Breaking Bad');
 });
 
 test('the trending shelf badges a title on a list or followed instead of showing an in-library badge', function () {
