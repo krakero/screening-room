@@ -23,6 +23,7 @@ class UpdateStatusController extends Controller
             'version' => AppVersion::current(),
             'boot' => $boot,
             'status' => $updater->status(),
+            'current' => $updater->currentUpdate(),
             'heartbeat_ok' => $updater->isAvailable(),
         ];
     }

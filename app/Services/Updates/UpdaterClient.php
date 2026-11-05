@@ -124,6 +124,68 @@ class UpdaterClient
     }
 
     /**
+     * Determine the current update state from shared files, without relying on component state.
+     */
+    public function currentUpdate(): ?array
+    {
+        $disk = Storage::disk($this->disk);
+
+        if ($disk->exists('request.json')) {
+            $request = $this->readJson('request.json') ?? [];
+
+            return array_merge($request, ['state' => 'queued']);
+        }
+
+        $status = $this->readJson('status.json');
+
+        if ($disk->exists('request.processing.json')) {
+            $processing = $this->readJson('request.processing.json');
+            $processingId = $processing['id'] ?? null;
+            $statusId = $status['id'] ?? null;
+
+            if ($status === null || $processingId === null || $processingId !== $statusId) {
+                return array_merge($processing ?? [], ['state' => 'starting']);
+            }
+        }
+
+        if ($status === null) {
+            return null;
+        }
+
+        $state = $status['state'] ?? null;
+
+        if (in_array($state, ['pulling', 'recreating', 'waiting', 'rolling_back'], true)) {
+            return $status;
+        }
+
+        if (in_array($state, ['done', 'failed', 'rolled_back'], true)) {
+            $lastModified = $disk->lastModified('status.json');
+
+            if ($lastModified !== false && (Carbon::now()->timestamp - $lastModified) < 600) {
+                return array_merge($status, ['finished_at' => Carbon::createFromTimestamp($lastModified)->toIso8601String()]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Delete request.json if still queued (never touches request.processing.json).
+     */
+    public function cancelQueued(): bool
+    {
+        $disk = Storage::disk($this->disk);
+
+        if ($disk->exists('request.json')) {
+            $disk->delete('request.json');
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Check if a request is pending (request.json or request.processing.json exists).
      */
     private function hasPendingRequest(): bool

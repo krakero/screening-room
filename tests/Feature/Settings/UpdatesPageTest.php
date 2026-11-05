@@ -119,7 +119,7 @@ test('update now button requests update', function () {
     $client = Mockery::mock(UpdaterClient::class);
     $client->shouldReceive('isAvailable')->andReturn(true);
     $client->shouldReceive('preUpdateDumps')->andReturn([]);
-    $client->shouldReceive('status')->andReturn(null);
+    $client->shouldReceive('currentUpdate')->andReturn(null);
     $client->shouldReceive('requestUpdate')
         ->with(UpdateChannel::Stable, 'update')
         ->once()
@@ -161,7 +161,7 @@ test('channel switch requests update with switch action', function () {
     $client = Mockery::mock(UpdaterClient::class);
     $client->shouldReceive('isAvailable')->andReturn(true);
     $client->shouldReceive('preUpdateDumps')->andReturn([]);
-    $client->shouldReceive('status')->andReturn(null);
+    $client->shouldReceive('currentUpdate')->andReturn(null);
     $client->shouldReceive('requestUpdate')
         ->with(UpdateChannel::Develop, 'switch')
         ->once()
@@ -178,16 +178,12 @@ test('channel switch requests update with switch action', function () {
 
 test('updating state shows progress', function () {
     mockAppVersion('1.0.0', UpdateChannel::Stable);
-    mockUpdateAvailable('1.1.0', 'New version', 'https://example.com', UpdateChannel::Stable);
+    mockNoUpdateAvailable();
 
     $client = Mockery::mock(UpdaterClient::class);
     $client->shouldReceive('isAvailable')->andReturn(true);
     $client->shouldReceive('preUpdateDumps')->andReturn([]);
-    $client->shouldReceive('requestUpdate')
-        ->with(UpdateChannel::Stable, 'update')
-        ->once()
-        ->andReturn('request-id-123');
-    $client->shouldReceive('status')->andReturn([
+    $client->shouldReceive('currentUpdate')->andReturn([
         'id' => 'request-id-123',
         'state' => 'pulling',
         'message' => 'Downloading image...',
@@ -201,23 +197,18 @@ test('updating state shows progress', function () {
     app()->instance(UpdaterClient::class, $client);
 
     Livewire::test('pages::settings.updates')
-        ->call('updateNow')
         ->assertSee('Downloading update')
         ->assertSee('Downloading image');
 });
 
 test('rolled back state shows error and dump', function () {
     mockAppVersion('1.0.0', UpdateChannel::Stable);
-    mockUpdateAvailable('1.1.0', 'New version', 'https://example.com', UpdateChannel::Stable);
+    mockNoUpdateAvailable();
 
     $client = Mockery::mock(UpdaterClient::class);
     $client->shouldReceive('isAvailable')->andReturn(true);
     $client->shouldReceive('preUpdateDumps')->andReturn([]);
-    $client->shouldReceive('requestUpdate')
-        ->with(UpdateChannel::Stable, 'update')
-        ->once()
-        ->andReturn('request-id-123');
-    $client->shouldReceive('status')->andReturn([
+    $client->shouldReceive('currentUpdate')->andReturn([
         'id' => 'request-id-123',
         'state' => 'rolled_back',
         'message' => 'Migration failed',
@@ -231,7 +222,6 @@ test('rolled back state shows error and dump', function () {
     app()->instance(UpdaterClient::class, $client);
 
     Livewire::test('pages::settings.updates')
-        ->call('updateNow')
         ->assertSee('Update failed, rolled back')
         ->assertSee('Migration failed')
         ->assertSee('pre-update-1.1.0-2024-01-15_123000.sql.gz');
@@ -243,6 +233,10 @@ test('status endpoint returns JSON with boot and status', function () {
     $client = Mockery::mock(UpdaterClient::class);
     $client->shouldReceive('isAvailable')->andReturn(true);
     $client->shouldReceive('status')->andReturn([
+        'id' => 'req-123',
+        'state' => 'done',
+    ]);
+    $client->shouldReceive('currentUpdate')->andReturn([
         'id' => 'req-123',
         'state' => 'done',
     ]);
@@ -269,7 +263,8 @@ test('status endpoint returns JSON with boot and status', function () {
         ->assertJsonPath('version.channel', 'stable')
         ->assertJsonPath('version.commit', 'xyz789')
         ->assertJsonPath('boot.state', 'ready')
-        ->assertJsonPath('status.id', 'req-123');
+        ->assertJsonPath('status.id', 'req-123')
+        ->assertJsonPath('current.id', 'req-123');
 });
 
 test('status endpoint works when boot.json does not exist', function () {
@@ -278,6 +273,7 @@ test('status endpoint works when boot.json does not exist', function () {
     $client = Mockery::mock(UpdaterClient::class);
     $client->shouldReceive('isAvailable')->andReturn(false);
     $client->shouldReceive('status')->andReturn(null);
+    $client->shouldReceive('currentUpdate')->andReturn(null);
 
     app()->instance(UpdaterClient::class, $client);
 
@@ -288,8 +284,148 @@ test('status endpoint works when boot.json does not exist', function () {
             'app_up' => true,
             'boot' => null,
             'status' => null,
+            'current' => null,
             'heartbeat_ok' => false,
         ]);
+});
+
+test('panel shows on fresh mount when update is queued', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable);
+    mockNoUpdateAvailable();
+
+    $client = Mockery::mock(UpdaterClient::class);
+    $client->shouldReceive('isAvailable')->andReturn(true);
+    $client->shouldReceive('preUpdateDumps')->andReturn([]);
+    $client->shouldReceive('currentUpdate')->andReturn([
+        'id' => 'req-123',
+        'state' => 'queued',
+        'action' => 'update',
+        'tag' => 'latest',
+        'requested_at' => now()->toIso8601String(),
+    ]);
+
+    app()->instance(UpdaterClient::class, $client);
+
+    Livewire::test('pages::settings.updates')
+        ->assertSee('Waiting for the updater');
+});
+
+test('panel shows on fresh mount when update is in progress', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable);
+    mockNoUpdateAvailable();
+
+    $client = Mockery::mock(UpdaterClient::class);
+    $client->shouldReceive('isAvailable')->andReturn(true);
+    $client->shouldReceive('preUpdateDumps')->andReturn([]);
+    $client->shouldReceive('currentUpdate')->andReturn([
+        'id' => 'req-123',
+        'state' => 'pulling',
+        'message' => 'Pulling image...',
+        'started_at' => now()->toIso8601String(),
+    ]);
+
+    app()->instance(UpdaterClient::class, $client);
+
+    Livewire::test('pages::settings.updates')
+        ->assertSee('Downloading update')
+        ->assertSee('Pulling image');
+});
+
+test('panel shows on fresh mount when update recently completed', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable);
+    mockNoUpdateAvailable();
+
+    $client = Mockery::mock(UpdaterClient::class);
+    $client->shouldReceive('isAvailable')->andReturn(true);
+    $client->shouldReceive('preUpdateDumps')->andReturn([]);
+    $client->shouldReceive('currentUpdate')->andReturn([
+        'id' => 'req-123',
+        'state' => 'done',
+        'finished_at' => now()->toIso8601String(),
+    ]);
+
+    app()->instance(UpdaterClient::class, $client);
+
+    Livewire::test('pages::settings.updates')
+        ->assertSee('Update complete');
+});
+
+test('recent done state shows panel but does not disable buttons', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable);
+    mockUpdateAvailable('1.1.0', 'New version', 'https://example.com', UpdateChannel::Stable);
+
+    $client = Mockery::mock(UpdaterClient::class);
+    $client->shouldReceive('isAvailable')->andReturn(true);
+    $client->shouldReceive('preUpdateDumps')->andReturn([]);
+    $client->shouldReceive('currentUpdate')->andReturn([
+        'id' => 'req-123',
+        'state' => 'done',
+        'finished_at' => now()->toIso8601String(),
+    ]);
+
+    app()->instance(UpdaterClient::class, $client);
+
+    Livewire::test('pages::settings.updates')
+        ->assertSee('Update complete')
+        ->assertSee('Update now')
+        ->assertDontSee('Updating…');
+});
+
+test('update now button shows Updating while in progress', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable);
+    mockUpdateAvailable('1.1.0', 'New version', 'https://example.com', UpdateChannel::Stable);
+
+    $client = Mockery::mock(UpdaterClient::class);
+    $client->shouldReceive('isAvailable')->andReturn(true);
+    $client->shouldReceive('preUpdateDumps')->andReturn([]);
+    $client->shouldReceive('currentUpdate')->andReturn([
+        'id' => 'req-123',
+        'state' => 'pulling',
+        'message' => null,
+    ]);
+
+    app()->instance(UpdaterClient::class, $client);
+
+    Livewire::test('pages::settings.updates')
+        ->assertSee('Updating');
+});
+
+test('updateNow while already in progress shows toast not exception', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable);
+    mockNoUpdateAvailable();
+
+    $client = Mockery::mock(UpdaterClient::class);
+    $client->shouldReceive('isAvailable')->andReturn(true);
+    $client->shouldReceive('preUpdateDumps')->andReturn([]);
+    $client->shouldReceive('currentUpdate')->andReturn([
+        'id' => 'req-123',
+        'state' => 'queued',
+    ]);
+    $client->shouldNotReceive('requestUpdate');
+
+    app()->instance(UpdaterClient::class, $client);
+
+    Livewire::test('pages::settings.updates')
+        ->call('updateNow');
+});
+
+test('cancelQueued calls client cancelQueued', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable);
+    mockNoUpdateAvailable();
+
+    $client = Mockery::mock(UpdaterClient::class);
+    $client->shouldReceive('isAvailable')->andReturn(true);
+    $client->shouldReceive('preUpdateDumps')->andReturn([]);
+    $client->shouldReceive('currentUpdate')->andReturn([
+        'id' => 'req-123',
+        'state' => 'queued',
+    ]);
+    $client->shouldReceive('cancelQueued')->once()->andReturn(true);
+
+    app()->instance(UpdaterClient::class, $client);
+
+    Livewire::test('pages::settings.updates')
+        ->call('cancelQueued');
 });
 
 // Helper functions to mock services
@@ -308,7 +444,7 @@ function mockUpdaterAvailable(bool $available): void
     $client = Mockery::mock(UpdaterClient::class);
     $client->shouldReceive('isAvailable')->andReturn($available);
     $client->shouldReceive('preUpdateDumps')->andReturn([]);
-    $client->shouldReceive('status')->andReturn(null);
+    $client->shouldReceive('currentUpdate')->andReturn(null);
 
     app()->instance(UpdaterClient::class, $client);
 }
@@ -341,7 +477,7 @@ function mockPreUpdateDumps(array $dumps): void
 {
     $mock = Mockery::mock(UpdaterClient::class);
     $mock->shouldReceive('isAvailable')->andReturn(true);
-    $mock->shouldReceive('status')->andReturn(null);
+    $mock->shouldReceive('currentUpdate')->andReturn(null);
     $mock->shouldReceive('preUpdateDumps')->andReturn($dumps);
 
     app()->instance(UpdaterClient::class, $mock);
