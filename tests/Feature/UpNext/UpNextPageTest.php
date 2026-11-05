@@ -297,7 +297,7 @@ test('recently added to plex does not show a label badge for movies', function (
     $response->assertDontSee('new episodes');
 });
 
-test('recently added to plex always shows the plex badge on each card', function () {
+test('recently added to plex cards leave out the redundant plex badge', function () {
     $this->actingAs(User::factory()->create());
 
     $movie = Title::factory()->movie()->create(['name' => 'Plex Listed Movie']);
@@ -310,7 +310,22 @@ test('recently added to plex always shows the plex badge on each card', function
 
     $response->assertOk();
     $response->assertDontSee('@if');
-    $response->assertSee(__('Available on Plex'), false);
+    $response->assertDontSee(__('Available on Plex'), false);
+});
+
+test('recently added to plex shows the episode label in the bottom-right corner', function () {
+    $this->actingAs(User::factory()->create());
+
+    $show = Title::factory()->show()->create(['name' => 'Corner Badge Show']);
+
+    mockCacheForRecentlyAdded($this, [
+        ['title' => $show, 'added_at' => CarbonImmutable::now()->subDay(), 'episode_count' => 3, 'season_number' => null, 'episode_number' => null, 'label' => '3 new episodes'],
+    ]);
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['absolute bottom-1.5 right-1.5', '3 new episodes'], false);
 });
 
 test('recently added to plex each poster links to the title page', function () {

@@ -78,6 +78,12 @@
             </div>
         @endif
 
+        @isset($cornerBadge)
+            <div class="absolute bottom-1.5 right-1.5">
+                {{ $cornerBadge }}
+            </div>
+        @endisset
+
         @if (! is_null($progress))
             <div class="absolute inset-x-0 bottom-0 px-1.5 pb-1.5">
                 <x-media.progress :value="$progress" :max="100" />

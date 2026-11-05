@@ -239,13 +239,12 @@ new #[PageTitle('Up Next')] class extends Component
                         :subtitle="$entry['title']->isMovie() ? __('Movie') : __('Show')"
                         :href="route('titles.show', $entry['title'])"
                         :type="$entry['title']->type->value"
-                        :plex-available="true"
                         wire:key="recently-added-{{ $entry['title']->id }}"
                     >
                         @if ($entry['label'] !== null)
-                            <x-slot:badge>
+                            <x-slot:corner-badge>
                                 <x-media.badge tone="neutral" variant="solid">{{ $entry['label'] }}</x-media.badge>
-                            </x-slot:badge>
+                            </x-slot:corner-badge>
                         @endif
                     </x-media.poster-card>
                 @endforeach
