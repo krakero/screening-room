@@ -117,6 +117,47 @@ test('list items can be filtered to unwatched titles', function () {
     expect($response->json('data.*.title.name'))->toBe(['Unwatched']);
 });
 
+test('list items can be filtered by watched status', function (string $watched, array $expected) {
+    $user = User::factory()->create();
+    $mediaList = MediaList::factory()->create();
+
+    $watchedMovie = Title::factory()->movie()->create(['name' => 'Watched Movie']);
+    $unwatchedMovie = Title::factory()->movie()->create(['name' => 'Unwatched Movie']);
+    Play::factory()->create(['playable_id' => $watchedMovie->id]);
+
+    $finishedShow = Title::factory()->show()->create(['name' => 'Finished Show', 'in_production' => false]);
+    $partialShow = Title::factory()->show()->create(['name' => 'Partial Show', 'in_production' => false]);
+    $untouchedShow = Title::factory()->show()->create(['name' => 'Untouched Show', 'in_production' => false]);
+
+    foreach ([$finishedShow, $partialShow, $untouchedShow] as $show) {
+        $season = Season::factory()->for($show)->create(['season_number' => 1]);
+        $watchedEpisode = Episode::factory()->aired()->for($season)->create();
+        $unwatchedEpisode = Episode::factory()->aired()->for($season)->create();
+
+        if ($show->isNot($untouchedShow)) {
+            Play::factory()->create(['playable_type' => 'episode', 'playable_id' => $watchedEpisode->id]);
+        }
+
+        if ($show->is($finishedShow)) {
+            Play::factory()->create(['playable_type' => 'episode', 'playable_id' => $unwatchedEpisode->id]);
+        }
+    }
+
+    foreach ([$watchedMovie, $unwatchedMovie, $finishedShow, $partialShow, $untouchedShow] as $position => $title) {
+        MediaListItem::factory()->create(['media_list_id' => $mediaList->id, 'title_id' => $title->id, 'position' => $position]);
+    }
+
+    $response = $this->actingAs($user, 'sanctum')->getJson("/api/v1/lists/{$mediaList->id}/items?watched={$watched}");
+
+    $response->assertOk();
+    expect($response->json('data.*.title.name'))->toBe($expected);
+})->with([
+    'unwatched' => ['unwatched', ['Unwatched Movie', 'Untouched Show']],
+    'in-progress' => ['in-progress', ['Partial Show']],
+    'watched' => ['watched', ['Watched Movie', 'Finished Show']],
+    'not-finished' => ['not-finished', ['Unwatched Movie', 'Partial Show', 'Untouched Show']],
+]);
+
 test('list item sort and filters combine', function () {
     $user = User::factory()->create();
     $mediaList = MediaList::factory()->create();
@@ -148,6 +189,7 @@ test('list items reject invalid sort and filter params', function (string $query
     ['status=bogus', 'status'],
     ['release=bogus', 'release'],
     ['unwatched=maybe', 'unwatched'],
+    ['watched=bogus', 'watched'],
 ]);
 
 test('a title can be added to a list', function () {

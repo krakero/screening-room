@@ -255,7 +255,72 @@ test('the release filter splits released and upcoming titles', function (string 
     ['upcoming', 'Coming'],
 ]);
 
-test('the unwatched filter hides watched movies and fully watched shows', function () {
+function watchedFilterSetup(): MediaList
+{
+    $mediaList = MediaList::factory()->create();
+
+    $watchedMovie = Title::factory()->movie()->create(['name' => 'Watched Movie']);
+    $unwatchedMovie = Title::factory()->movie()->create(['name' => 'Unwatched Movie']);
+    Play::factory()->create(['playable_id' => $watchedMovie->id]);
+
+    $finishedShow = Title::factory()->show()->create(['name' => 'Finished Show', 'in_production' => false]);
+    $partialShow = Title::factory()->show()->create(['name' => 'Partial Show', 'in_production' => false]);
+    $untouchedShow = Title::factory()->show()->create(['name' => 'Untouched Show', 'in_production' => false]);
+
+    foreach ([$finishedShow, $partialShow, $untouchedShow] as $show) {
+        $season = Season::factory()->for($show)->create(['season_number' => 1]);
+        $watchedEpisode = Episode::factory()->aired()->for($season)->create();
+        $unwatchedEpisode = Episode::factory()->aired()->for($season)->create();
+
+        if ($show->isNot($untouchedShow)) {
+            Play::factory()->create(['playable_type' => 'episode', 'playable_id' => $watchedEpisode->id]);
+        }
+
+        if ($show->is($finishedShow)) {
+            Play::factory()->create(['playable_type' => 'episode', 'playable_id' => $unwatchedEpisode->id]);
+        }
+    }
+
+    listWithTitles($mediaList, [$watchedMovie, $unwatchedMovie, $finishedShow, $partialShow, $untouchedShow]);
+
+    return $mediaList;
+}
+
+test('the not-finished filter hides watched movies and fully watched shows', function () {
+    $this->actingAs(User::factory()->create());
+
+    $mediaList = watchedFilterSetup();
+
+    expect(listPageItemNames($mediaList, ['watched' => 'not-finished']))
+        ->toBe(['Unwatched Movie', 'Partial Show', 'Untouched Show']);
+});
+
+test('each watched filter option returns the correct titles', function (string $filter, array $expected) {
+    $this->actingAs(User::factory()->create());
+
+    $mediaList = watchedFilterSetup();
+
+    expect(listPageItemNames($mediaList, ['watched' => $filter]))->toBe($expected);
+})->with([
+    'unwatched' => ['unwatched', ['Unwatched Movie', 'Untouched Show']],
+    'in-progress' => ['in-progress', ['Partial Show']],
+    'watched' => ['watched', ['Watched Movie', 'Finished Show']],
+    'not-finished' => ['not-finished', ['Unwatched Movie', 'Partial Show', 'Untouched Show']],
+]);
+
+test('the legacy unwatched=1 query string is treated as not-finished', function () {
+    $this->actingAs(User::factory()->create());
+
+    $mediaList = watchedFilterSetup();
+
+    $items = Livewire::withQueryParams(['unwatched' => '1'])
+        ->test('pages::lists.show', ['mediaList' => $mediaList])
+        ->instance()->items;
+
+    expect($items->pluck('title.name')->all())->toBe(['Unwatched Movie', 'Partial Show', 'Untouched Show']);
+});
+
+test('list posters mark watched titles and show progress on partly watched shows', function () {
     $this->actingAs(User::factory()->create());
 
     $mediaList = MediaList::factory()->create();
@@ -284,8 +349,17 @@ test('the unwatched filter hides watched movies and fully watched shows', functi
 
     listWithTitles($mediaList, [$watchedMovie, $unwatchedMovie, $finishedShow, $partialShow, $untouchedShow]);
 
-    expect(listPageItemNames($mediaList, ['unwatched' => true]))
-        ->toBe(['Unwatched Movie', 'Partial Show', 'Untouched Show']);
+    $states = Livewire::test('pages::lists.show', ['mediaList' => $mediaList])->instance()->watchStates;
+
+    expect($states[$watchedMovie->id])->toBe(['watched' => true, 'progress' => null])
+        ->and($states[$unwatchedMovie->id])->toBe(['watched' => false, 'progress' => null])
+        ->and($states[$finishedShow->id])->toBe(['watched' => true, 'progress' => null])
+        ->and($states[$partialShow->id])->toBe(['watched' => false, 'progress' => 50.0])
+        ->and($states[$untouchedShow->id])->toBe(['watched' => false, 'progress' => null]);
+
+    $this->get(route('lists.show', $mediaList))
+        ->assertOk()
+        ->assertSee('bg-status-watched', false);
 });
 
 test('filters combine', function () {
@@ -319,7 +393,7 @@ test('reordering is ignored while sorted or filtered', function (array $state) {
     'sorted' => [['sort' => 'title']],
     'type' => [['type' => 'movie']],
     'status' => [['statusFilter' => 'ended']],
-    'unwatched' => [['unwatched' => true]],
+    'watched' => [['watched' => 'not-finished']],
     'release' => [['release' => 'released']],
     'service' => [['service' => '8']],
     'network' => [['network' => '8']],
@@ -442,6 +516,55 @@ test('the network options are the networks of the list titles', function () {
     $options = Livewire::test('pages::lists.show', ['mediaList' => $mediaList])->instance()->networkOptions;
 
     expect($options->pluck('name')->all())->toBe(['AMC', 'HBO']);
+});
+
+test('the network select is hidden on the watchlist', function () {
+    $this->actingAs(User::factory()->create());
+
+    $mediaList = MediaList::factory()->create(['is_watchlist' => true]);
+    $title = Title::factory()->show()->create();
+    listWithTitles($mediaList, [$title]);
+    $network = Network::factory()->create(['name' => 'HBO']);
+    $title->networks()->attach($network->id, ['position' => 0]);
+
+    Livewire::test('pages::lists.show', ['mediaList' => $mediaList])
+        ->assertDontSee('Any network');
+});
+
+test('the network select is present on a regular list', function () {
+    $this->actingAs(User::factory()->create());
+
+    $mediaList = MediaList::factory()->create(['is_watchlist' => false]);
+    $title = Title::factory()->show()->create();
+    listWithTitles($mediaList, [$title]);
+    $network = Network::factory()->create(['name' => 'HBO']);
+    $title->networks()->attach($network->id, ['position' => 0]);
+
+    Livewire::test('pages::lists.show', ['mediaList' => $mediaList])
+        ->assertSee('Any network');
+});
+
+test('the network param is ignored on the watchlist', function () {
+    $this->actingAs(User::factory()->create());
+
+    $mediaList = MediaList::factory()->create(['is_watchlist' => true]);
+    $onHbo = Title::factory()->show()->create(['name' => 'On HBO']);
+    $onAmc = Title::factory()->show()->create(['name' => 'On AMC']);
+    listWithTitles($mediaList, [$onHbo, $onAmc]);
+    $hbo = Network::factory()->create();
+    $onHbo->networks()->attach($hbo->id, ['position' => 0]);
+
+    expect(listPageItemNames($mediaList, ['network' => (string) $hbo->id]))->toBe(['On HBO', 'On AMC']);
+});
+
+test('the back link has self-start so it does not stretch full width', function () {
+    $this->actingAs(User::factory()->create());
+
+    $mediaList = MediaList::factory()->create();
+
+    $this->get(route('lists.show', $mediaList))
+        ->assertOk()
+        ->assertSee('self-start', false);
 });
 
 test('with show where to watch off the service filter is hidden and the service param is ignored', function () {

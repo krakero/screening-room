@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Lists;
 
 use App\Enums\ListReleaseFilter;
 use App\Enums\ListSort;
+use App\Enums\ListWatchedFilter;
 use App\Enums\ShowStatus;
 use App\Enums\TitleType;
 use App\Http\Controllers\Controller;
@@ -26,17 +27,24 @@ class ListItemController extends Controller
             'type' => ['nullable', Rule::enum(TitleType::class)],
             'status' => ['nullable', Rule::enum(ShowStatus::class)],
             'unwatched' => ['nullable', 'boolean'],
+            'watched' => ['nullable', Rule::enum(ListWatchedFilter::class)],
             'release' => ['nullable', Rule::enum(ListReleaseFilter::class)],
             'service' => ['nullable', 'integer', 'exists:watch_providers,id'],
             'network' => ['nullable', 'integer', 'exists:networks,id'],
         ]);
+
+        // `watched` wins; legacy `unwatched=1` maps to not-finished
+        $watchedParam = $validated['watched'] ?? null;
+        if ($watchedParam === null && $request->boolean('unwatched')) {
+            $watchedParam = ListWatchedFilter::NotFinished->value;
+        }
 
         $items = $listItemQuery->forInput(
             $list,
             $validated['sort'] ?? null,
             $validated['type'] ?? null,
             $validated['status'] ?? null,
-            $request->boolean('unwatched'),
+            $watchedParam,
             $validated['release'] ?? null,
             isset($validated['service']) ? (int) $validated['service'] : null,
             isset($validated['network']) ? (int) $validated['network'] : null,

@@ -2,13 +2,17 @@
 
 use App\Enums\ListReleaseFilter;
 use App\Enums\ListSort;
+use App\Enums\ListWatchedFilter;
 use App\Enums\ShowStatus;
 use App\Enums\TitleType;
 use App\Models\MediaList;
 use App\Models\Network;
+use App\Models\Play;
+use App\Models\Title;
 use App\Models\WatchProvider;
 use App\Services\Collection\Ownership;
 use App\Services\Lists\ListItemQuery;
+use App\Services\ShowProgress;
 use App\Services\Tmdb\TmdbClient;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -30,8 +34,8 @@ new class extends Component
     #[Url(as: 'type', except: '')]
     public string $type = '';
 
-    #[Url(as: 'unwatched', except: false)]
-    public bool $unwatched = false;
+    #[Url(as: 'watched', except: '')]
+    public string $watched = '';
 
     #[Url(as: 'release', except: '')]
     public string $release = '';
@@ -50,7 +54,7 @@ new class extends Component
             $this->sort,
             $this->type,
             $this->statusFilter,
-            $this->unwatched,
+            $this->watched,
             $this->release,
             $this->providerFilter(),
             $this->networkFilter(),
@@ -102,6 +106,10 @@ new class extends Component
 
     private function networkFilter(): ?int
     {
+        if ($this->mediaList->is_watchlist) {
+            return null;
+        }
+
         return ctype_digit($this->network) ? (int) $this->network : null;
     }
 
@@ -113,7 +121,7 @@ new class extends Component
             || ListReleaseFilter::tryFrom($this->release) !== null
             || $this->providerFilter() !== null
             || $this->networkFilter() !== null
-            || $this->unwatched;
+            || $this->watched !== '';
     }
 
     #[Computed]
@@ -128,6 +136,41 @@ new class extends Component
         $titles = $this->items->pluck('title');
 
         return app(Ownership::class)->forTitles($titles);
+    }
+
+    /**
+     * Watched state per title on this list: a movie is watched once it has a play; a show is
+     * watched when every aired episode is (ShowProgress::isComplete), and otherwise reports its
+     * progress percent once at least one episode has been watched.
+     *
+     * @return array<int, array{watched: bool, progress: ?float}>
+     */
+    #[Computed]
+    public function watchStates(): array
+    {
+        $titles = $this->items->pluck('title');
+
+        $watchedMovieIds = Play::query()
+            ->where('playable_type', (new Title)->getMorphClass())
+            ->whereIn('playable_id', $titles->filter->isMovie()->pluck('id'))
+            ->distinct()
+            ->pluck('playable_id')
+            ->flip();
+
+        $progress = app(ShowProgress::class)->forMany($titles->filter->isShow());
+
+        return $titles->mapWithKeys(function (Title $title) use ($watchedMovieIds, $progress): array {
+            if ($title->isMovie()) {
+                return [$title->id => ['watched' => $watchedMovieIds->has($title->id), 'progress' => null]];
+            }
+
+            $show = $progress->get($title->id);
+
+            return [$title->id => [
+                'watched' => (bool) $show?->isComplete,
+                'progress' => $show && ! $show->isComplete && $show->watchedCount > 0 ? $show->percent : null,
+            ]];
+        })->all();
     }
 
     #[Renderless]
@@ -167,6 +210,13 @@ new class extends Component
         unset($this->items);
     }
 
+    public function mount(): void
+    {
+        if ($this->watched === '' && request()->query('unwatched') === '1') {
+            $this->watched = 'not-finished';
+        }
+    }
+
     public function render()
     {
         return $this->view()->title($this->mediaList->name);
@@ -175,7 +225,7 @@ new class extends Component
 
 <div class="flex flex-col gap-6 py-6">
     <div class="flex flex-col gap-2">
-        <flux:link href="{{ route('lists.index') }}" wire:navigate class="text-sm">
+        <flux:link href="{{ route('lists.index') }}" wire:navigate class="self-start text-sm">
             {{ __('← Back to lists') }}
         </flux:link>
 
@@ -228,7 +278,7 @@ new class extends Component
             </flux:select>
         @endif
 
-        @if ($this->networkOptions->isNotEmpty() || $network !== '')
+        @if (!$mediaList->is_watchlist && ($this->networkOptions->isNotEmpty() || $network !== ''))
             <flux:select wire:model.live="network" class="w-48" :placeholder="__('Any network')">
                 <flux:select.option value="">{{ __('Any network') }}</flux:select.option>
                 @foreach ($this->networkOptions as $option)
@@ -237,7 +287,12 @@ new class extends Component
             </flux:select>
         @endif
 
-        <flux:switch wire:model.live="unwatched" :label="__('Unwatched only')" />
+        <flux:select wire:model.live="watched" class="w-48" :placeholder="__('Any watch status')">
+            <flux:select.option value="">{{ __('Any watch status') }}</flux:select.option>
+            @foreach (ListWatchedFilter::cases() as $watchedOption)
+                <flux:select.option value="{{ $watchedOption->value }}">{{ $watchedOption->label() }}</flux:select.option>
+            @endforeach
+        </flux:select>
     </div>
 
     @if ($this->items->isEmpty())
@@ -255,9 +310,10 @@ new class extends Component
 $title = $item->title;
 $releaseDate = $title->isMovie() ? $title->release_date : $title->last_air_date;
 $summary = $this->ownershipSummaries[$title->id] ?? null;
+$watchState = $this->watchStates[$title->id] ?? ['watched' => false, 'progress' => null];
 @endphp
 <div wire:key="item-{{ $item->id }}" wire:sort:item="{{ $item->title_id }}" x-data="optimistic(false)" x-show="!value" x-transition.opacity.duration.200ms class="group/item relative">
-<x-media.poster-card :image="$title->posterUrl()" :name="$title->name" :subtitle="$releaseDate?->format('Y')" :href="route('titles.show', $title)" :type="$title->type->value" :status="$title->libraryStatus?->state->value" size="fluid">
+<x-media.poster-card :image="$title->posterUrl()" :name="$title->name" :subtitle="$releaseDate?->format('Y')" :href="route('titles.show', $title)" :type="$title->type->value" :status="$title->libraryStatus?->state->value" :watched="$watchState['watched']" :progress="$watchState['progress']" size="fluid">
 @if ($summary && $summary->isOwned())
 <x-slot:badge>
 <x-media.owned-badge :summary="$summary" />

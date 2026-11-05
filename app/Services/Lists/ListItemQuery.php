@@ -4,6 +4,7 @@ namespace App\Services\Lists;
 
 use App\Enums\ListReleaseFilter;
 use App\Enums\ListSort;
+use App\Enums\ListWatchedFilter;
 use App\Enums\ShowStatus;
 use App\Enums\TitleType;
 use App\Models\MediaList;
@@ -36,7 +37,7 @@ class ListItemQuery
         ?string $sort = null,
         ?string $type = null,
         ?string $status = null,
-        bool $unwatched = false,
+        ?string $watched = null,
         ?string $release = null,
         ?int $provider = null,
         ?int $network = null,
@@ -46,7 +47,7 @@ class ListItemQuery
             ListSort::tryFrom((string) $sort) ?? ListSort::Manual,
             TitleType::tryFrom((string) $type),
             ShowStatus::tryFrom((string) $status),
-            $unwatched,
+            ListWatchedFilter::tryFrom((string) $watched),
             ListReleaseFilter::tryFrom((string) $release),
             $provider,
             $network,
@@ -61,7 +62,7 @@ class ListItemQuery
         ListSort $sort = ListSort::Manual,
         ?TitleType $type = null,
         ?ShowStatus $status = null,
-        bool $unwatched = false,
+        ?ListWatchedFilter $watched = null,
         ?ListReleaseFilter $release = null,
         ?int $provider = null,
         ?int $network = null,
@@ -88,7 +89,7 @@ class ListItemQuery
 
         $items = $query->get();
 
-        return $unwatched ? $this->onlyUnwatched($items) : $items;
+        return $watched !== null ? $this->filterByWatched($items, $watched) : $items;
     }
 
     /**
@@ -118,12 +119,10 @@ class ListItemQuery
     }
 
     /**
-     * Movies with no plays, and shows that aren't fully watched (see ShowProgress::isComplete).
-     *
      * @param  Collection<int, MediaListItem>  $items
      * @return Collection<int, MediaListItem>
      */
-    private function onlyUnwatched(Collection $items): Collection
+    private function filterByWatched(Collection $items, ListWatchedFilter $watched): Collection
     {
         $items->pluck('title')->filter->isMovie()->pipe(
             fn (Collection $movies) => (new EloquentCollection($movies->values()->all()))->loadMissing('plays:id,playable_type,playable_id')
@@ -131,10 +130,26 @@ class ListItemQuery
 
         $progress = $this->showProgress->forMany($items->pluck('title')->filter->isShow());
 
-        return $items
-            ->filter(fn (MediaListItem $item): bool => $item->title->isMovie()
-                ? $item->title->plays->isEmpty()
-                : ! $progress->get($item->title_id)->isComplete)
-            ->values();
+        return match ($watched) {
+            ListWatchedFilter::Unwatched => $items->filter(fn (MediaListItem $item): bool => $item->title->isMovie()
+                    ? $item->title->plays->isEmpty()
+                    : ($progress->get($item->title_id)?->watchedCount ?? 0) === 0
+            )->values(),
+
+            ListWatchedFilter::InProgress => $items->filter(fn (MediaListItem $item): bool => $item->title->isShow()
+                && ($progress->get($item->title_id)?->watchedCount ?? 0) > 0
+                && ! ($progress->get($item->title_id)?->isComplete ?? true)
+            )->values(),
+
+            ListWatchedFilter::Watched => $items->filter(fn (MediaListItem $item): bool => $item->title->isMovie()
+                    ? $item->title->plays->isNotEmpty()
+                    : ($progress->get($item->title_id)?->isComplete ?? false)
+            )->values(),
+
+            ListWatchedFilter::NotFinished => $items->filter(fn (MediaListItem $item): bool => $item->title->isMovie()
+                    ? $item->title->plays->isEmpty()
+                    : ! ($progress->get($item->title_id)?->isComplete ?? true)
+            )->values(),
+        };
     }
 }
