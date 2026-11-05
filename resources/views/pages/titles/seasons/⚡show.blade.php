@@ -338,7 +338,7 @@ new #[Layout('layouts::app', ['fullBleed' => true])] class extends Component
 <div class="flex flex-1 flex-col pb-16" @if (! $season->episodesLoaded()) wire:init="loadEpisodes" @endif x-data="{ customDatetimeTarget: '', customDatetime: '' }">
     <x-media.hero :backdrop="$title->backdropUrl('w1280')" :poster="$season->posterUrl() ?? $title->posterUrl()">
         <x-slot:title>
-            <a href="{{ route('titles.show', $title) }}" wire:navigate class="block text-sm font-medium text-ink-muted hover:text-ink">
+            <a href="{{ route('titles.show', $title) }}" wire:navigate class="block w-fit text-sm font-medium text-ink-muted hover:text-ink">
                 &larr; {{ $title->name }}
             </a>
             {{ $this->seasonLabel() }}
