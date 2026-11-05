@@ -29,6 +29,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::livewire('settings/updates', 'pages::settings.updates')->name('settings.updates');
 
+    Route::livewire('settings/maintenance', 'pages::settings.maintenance')->name('settings.maintenance');
+
     Route::get('settings/updates/status', UpdateStatusController::class)
         ->name('settings.updates.status');
 
