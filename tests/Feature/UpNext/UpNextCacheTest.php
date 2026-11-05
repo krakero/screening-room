@@ -6,12 +6,14 @@ use App\Enums\TitleType;
 use App\Jobs\ImportSeasonEpisodes;
 use App\Models\Episode;
 use App\Models\Follow;
-use App\Models\MediaList;
+use App\Models\PlexLibraryEpisode;
+use App\Models\PlexLibraryItem;
 use App\Models\Season;
 use App\Models\Title;
 use App\Models\User;
 use App\Services\Tmdb\TmdbClient;
 use App\Services\UpNext\UpNextCache;
+use App\Support\IntegrationSettings;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -97,23 +99,117 @@ test('pausing a follow invalidates the cache', function () {
     expect(app(UpNextCache::class)->continueWatching())->toBeEmpty();
 });
 
-test('adding to and removing from the watchlist refreshes the Recently Added to Watchlist section', function () {
+test('recentlyAdded returns movies added to Plex within the last 14 days', function () {
     $this->actingAs(User::factory()->create(['timezone' => 'UTC']));
-    $watchlist = MediaList::watchlist();
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local', 'plex.token' => 'token123']);
 
-    expect(app(UpNextCache::class)->recentlyWatchlisted())->toBeEmpty();
+    expect(app(UpNextCache::class)->recentlyAdded())->toBeEmpty();
 
-    $title = Title::factory()->movie()->create(['name' => 'Freshly Added']);
+    $title = Title::factory()->movie()->create(['name' => 'Fresh Movie', 'tmdb_id' => 55555]);
+    PlexLibraryItem::factory()->create([
+        'type' => 'movie',
+        'tmdb_id' => 55555,
+        'added_at' => now()->subDays(5),
+    ]);
 
-    expect(app(UpNextCache::class)->recentlyWatchlisted())->toBeEmpty();
+    // Cache miss forces recompute and picks up the new item.
+    Cache::flush();
+    $results = app(UpNextCache::class)->recentlyAdded();
 
-    $watchlist->items()->create(['title_id' => $title->id, 'position' => 1]);
+    expect($results->pluck('title')->pluck('id'))->toContain($title->id);
+    expect($results->first()['episode_count'])->toBe(0);
+    expect($results->first()['label'])->toBeNull();
+});
 
-    expect(app(UpNextCache::class)->recentlyWatchlisted()->pluck('id'))->toContain($title->id);
+test('recentlyAdded groups show episodes by show and sets label', function () {
+    $this->actingAs(User::factory()->create(['timezone' => 'UTC']));
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local', 'plex.token' => 'token123']);
 
-    $watchlist->items()->where('title_id', $title->id)->get()->each->delete();
+    $show = Title::factory()->show()->create(['name' => 'Fresh Show', 'tmdb_id' => 66666]);
+    $item = PlexLibraryItem::factory()->show()->create([
+        'tmdb_id' => 66666,
+        'added_at' => now()->subDays(3),
+    ]);
+    PlexLibraryEpisode::factory()->create([
+        'show_rating_key' => $item->plex_rating_key,
+        'machine_identifier' => $item->machine_identifier,
+        'season_number' => 2,
+        'episode_number' => 5,
+        'added_at' => now()->subDays(3),
+    ]);
 
-    expect(app(UpNextCache::class)->recentlyWatchlisted())->toBeEmpty();
+    Cache::flush();
+    $results = app(UpNextCache::class)->recentlyAdded();
+    $entry = $results->firstWhere(fn ($e) => $e['title']->id === $show->id);
+
+    expect($entry)->not->toBeNull();
+    expect($entry['episode_count'])->toBe(1);
+    expect($entry['season_number'])->toBe(2);
+    expect($entry['episode_number'])->toBe(5);
+    expect($entry['label'])->toBe('S2 E5');
+});
+
+test('recentlyAdded shows multiple new episodes with count label', function () {
+    $this->actingAs(User::factory()->create(['timezone' => 'UTC']));
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local', 'plex.token' => 'token123']);
+
+    $show = Title::factory()->show()->create(['tmdb_id' => 77777]);
+    $item = PlexLibraryItem::factory()->show()->create([
+        'tmdb_id' => 77777,
+        'added_at' => now()->subDays(2),
+    ]);
+    PlexLibraryEpisode::factory()->create([
+        'show_rating_key' => $item->plex_rating_key,
+        'machine_identifier' => $item->machine_identifier,
+        'season_number' => 1,
+        'episode_number' => 1,
+        'added_at' => now()->subDays(2),
+    ]);
+    PlexLibraryEpisode::factory()->create([
+        'show_rating_key' => $item->plex_rating_key,
+        'machine_identifier' => $item->machine_identifier,
+        'season_number' => 1,
+        'episode_number' => 2,
+        'added_at' => now()->subDays(2),
+    ]);
+
+    Cache::flush();
+    $entry = app(UpNextCache::class)->recentlyAdded()
+        ->firstWhere(fn ($e) => $e['title']->id === $show->id);
+
+    expect($entry['episode_count'])->toBe(2);
+    expect($entry['season_number'])->toBeNull();
+    expect($entry['episode_number'])->toBeNull();
+    expect($entry['label'])->toBe('2 new episodes');
+});
+
+test('recentlyAdded excludes items older than 14 days', function () {
+    $this->actingAs(User::factory()->create(['timezone' => 'UTC']));
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local', 'plex.token' => 'token123']);
+
+    $title = Title::factory()->movie()->create(['tmdb_id' => 88888]);
+    PlexLibraryItem::factory()->create([
+        'type' => 'movie',
+        'tmdb_id' => 88888,
+        'added_at' => now()->subDays(15),
+    ]);
+
+    Cache::flush();
+    expect(app(UpNextCache::class)->recentlyAdded())->toBeEmpty();
+});
+
+test('recentlyAdded returns empty when Plex is not configured', function () {
+    $this->actingAs(User::factory()->create(['timezone' => 'UTC']));
+
+    $title = Title::factory()->movie()->create(['tmdb_id' => 99999]);
+    PlexLibraryItem::factory()->create([
+        'type' => 'movie',
+        'tmdb_id' => 99999,
+        'added_at' => now()->subDays(1),
+    ]);
+
+    Cache::flush();
+    expect(app(UpNextCache::class)->recentlyAdded())->toBeEmpty();
 });
 
 test('importing a season\'s episodes invalidates the cache', function () {

@@ -9,7 +9,8 @@
         "title": "Pilot",
         "grandparentRatingKey": "800",
         "parentIndex": 1,
-        "index": 1
+        "index": 1,
+        "addedAt": 1700000300
       },
       {
         "ratingKey": "902",
@@ -18,7 +19,8 @@
         "title": "Episode Two",
         "grandparentRatingKey": "800",
         "parentIndex": 1,
-        "index": 2
+        "index": 2,
+        "addedAt": 1700000400
       },
       {
         "ratingKey": "903",
@@ -27,7 +29,8 @@
         "title": "Episode One",
         "grandparentRatingKey": "800",
         "parentIndex": 2,
-        "index": 1
+        "index": 1,
+        "addedAt": 1700000500
       }
     ]
   }

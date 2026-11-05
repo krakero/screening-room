@@ -119,7 +119,7 @@ class PlexClient
      * `$shortTimeout: true`) — either way, a show's episode list is fetched at most once per
      * call, never once per episode.
      *
-     * @return array<int, array{season_number: int, episode_number: int, rating_key: string}>
+     * @return array<int, array{season_number: int, episode_number: int, rating_key: string, added_at: Carbon|null}>
      */
     public function showEpisodes(string $showRatingKey, bool $shortTimeout = true): array
     {
@@ -136,6 +136,7 @@ class PlexClient
                 'season_number' => (int) $item['parentIndex'],
                 'episode_number' => (int) $item['index'],
                 'rating_key' => (string) $item['ratingKey'],
+                'added_at' => isset($item['addedAt']) ? Carbon::createFromTimestamp((int) $item['addedAt']) : null,
             ];
         }
 

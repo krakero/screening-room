@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\EpisodeSummaryResource;
 use App\Http\Resources\V1\TitleSummaryResource;
 use App\Models\Episode;
-use App\Models\Title;
 use App\Services\UpNext\UpNextCache;
 use App\Support\Greeting;
 use Illuminate\Http\JsonResponse;
@@ -35,10 +34,15 @@ class UpNextController extends Controller
                 ])
                 ->values(),
             'airing_this_week' => $airingThisWeek->isEmpty() ? new \stdClass : $airingThisWeek,
-            'recently_added' => $upNextCache->recentlyWatchlisted()
-                ->map(fn (Title $title): array => [
-                    ...(new TitleSummaryResource($title))->resolve($request),
-                    'plex_available' => $upNextCache->plexConfigured() && ($title->plexItem?->found() ?? false),
+            'recently_added' => $upNextCache->recentlyAdded()
+                ->map(fn (array $entry): array => [
+                    ...(new TitleSummaryResource($entry['title']))->resolve($request),
+                    'plex_available' => true,
+                    'added_at' => $entry['added_at']->toIso8601String(),
+                    'episode_count' => $entry['episode_count'],
+                    'season_number' => $entry['season_number'],
+                    'episode_number' => $entry['episode_number'],
+                    'label' => $entry['label'],
                 ])
                 ->values(),
         ]);

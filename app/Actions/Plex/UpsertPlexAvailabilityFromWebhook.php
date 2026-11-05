@@ -4,9 +4,11 @@ namespace App\Actions\Plex;
 
 use App\Enums\TitleType;
 use App\Models\Episode;
+use App\Models\PlexLibraryEpisode;
 use App\Models\PlexLibraryItem;
 use App\Models\Title;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 /**
  * When a Plex webhook event carries a ratingKey + Guid[] (media.scrobble, library.new,
@@ -33,12 +35,18 @@ class UpsertPlexAvailabilityFromWebhook
         array $showGuids,
         ?int $seasonNumber,
         ?int $episodeNumber,
+        ?Carbon $addedAt = null,
+        ?string $showRatingKey = null,
     ): void {
         if ($machineIdentifier === null) {
             return;
         }
 
-        $this->indexItem($type, $ratingKey, $machineIdentifier, $guids);
+        $this->indexItem($type, $ratingKey, $machineIdentifier, $guids, $addedAt);
+
+        if ($type === 'episode' && $showRatingKey !== null && $seasonNumber !== null && $episodeNumber !== null) {
+            $this->indexEpisode($showRatingKey, $ratingKey, $machineIdentifier, $seasonNumber, $episodeNumber, $addedAt);
+        }
 
         if ($type === 'movie') {
             $title = $this->findTitle(TitleType::Movie, $guids);
@@ -70,7 +78,7 @@ class UpsertPlexAvailabilityFromWebhook
      *
      * @param  array<string, string>  $guids
      */
-    private function indexItem(string $type, string $ratingKey, string $machineIdentifier, array $guids): void
+    private function indexItem(string $type, string $ratingKey, string $machineIdentifier, array $guids, ?Carbon $addedAt = null): void
     {
         if ($guids === [] || ! in_array($type, ['movie', 'show'], true)) {
             return;
@@ -84,6 +92,28 @@ class UpsertPlexAvailabilityFromWebhook
                 'imdb_id' => $guids['imdb'] ?? null,
                 'tvdb_id' => $guids['tvdb'] ?? null,
                 'indexed_at' => now(),
+                'added_at' => $addedAt,
+            ],
+        );
+    }
+
+    /**
+     * Upserts the episode's row in `plex_library_episodes` from the webhook payload, so the
+     * Recently Added query can find it even before the next `plex:index` run.
+     */
+    private function indexEpisode(string $showRatingKey, string $ratingKey, string $machineIdentifier, int $seasonNumber, int $episodeNumber, ?Carbon $addedAt = null): void
+    {
+        PlexLibraryEpisode::query()->updateOrCreate(
+            [
+                'show_rating_key' => $showRatingKey,
+                'machine_identifier' => $machineIdentifier,
+                'season_number' => $seasonNumber,
+                'episode_number' => $episodeNumber,
+            ],
+            [
+                'plex_rating_key' => $ratingKey,
+                'indexed_at' => now(),
+                'added_at' => $addedAt,
             ],
         );
     }

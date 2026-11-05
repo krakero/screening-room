@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\ShowProgressData;
 use App\Services\Watch\WatchCacheVersion;
 use App\Support\DisplayTimezone;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -31,15 +32,15 @@ class UpNextCache
 
     /**
      * Shape of the cached entry. Bump whenever compute()'s keys change so entries written by
-     * older code are never read back with the wrong shape (2: recently_watchlisted replaced
-     * recently_added and abandoned).
+     * older code are never read back with the wrong shape (3: recently_added replaces
+     * recently_watchlisted with Plex-sourced entries).
      */
-    private const SCHEMA = 2;
+    private const SCHEMA = 3;
 
     public function __construct(
         private readonly ContinueWatchingQuery $continueWatchingQuery,
         private readonly AiringThisWeekQuery $airingThisWeekQuery,
-        private readonly RecentlyWatchlistedQuery $recentlyWatchlistedQuery,
+        private readonly RecentlyAddedToPlexQuery $recentlyAddedQuery,
         private readonly WatchCacheVersion $version,
     ) {}
 
@@ -100,25 +101,54 @@ class UpNextCache
     }
 
     /**
-     * @return Collection<int, Title>
+     * @return Collection<int, array{title: Title, added_at: CarbonImmutable, episode_count: int, season_number: ?int, episode_number: ?int, label: ?string}>
      */
-    public function recentlyWatchlisted(): Collection
+    public function recentlyAdded(): Collection
     {
-        $ids = $this->entries()['recently_watchlisted'];
+        $entries = $this->entries()['recently_added'];
 
-        return $this->hydrateInOrder(Title::class, $ids, $this->recentlyWatchlistedQuery->plexConfigured() ? ['plexItem'] : []);
+        if ($entries === []) {
+            return collect();
+        }
+
+        $titleIds = collect($entries)->pluck('title_id');
+        $titles = Title::query()
+            ->whereIn('id', $titleIds)
+            ->with(['plexItem'])
+            ->get()
+            ->keyBy('id');
+
+        return collect($entries)
+            ->map(function (array $entry) use ($titles): ?array {
+                $title = $titles->get($entry['title_id']);
+
+                if ($title === null) {
+                    return null;
+                }
+
+                return [
+                    'title' => $title,
+                    'added_at' => CarbonImmutable::parse($entry['added_at']),
+                    'episode_count' => $entry['episode_count'],
+                    'season_number' => $entry['season_number'],
+                    'episode_number' => $entry['episode_number'],
+                    'label' => RecentlyAddedToPlexQuery::label($entry),
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     public function plexConfigured(): bool
     {
-        return $this->recentlyWatchlistedQuery->plexConfigured();
+        return $this->recentlyAddedQuery->plexConfigured();
     }
 
     /**
      * Recomputes and stores all sections right now, regardless of whether a cached entry
      * already exists. Used by the nightly `upnext:warm` command and the post-bust warm job.
      *
-     * @return array{continue_watching: array<int, array{title_id: int, episode_id: int}>, airing_this_week: array<int, int>, recently_watchlisted: array<int, int>}
+     * @return array{continue_watching: array<int, array{title_id: int, episode_id: int}>, airing_this_week: array<int, int>, recently_added: array<int, array{title_id: int, added_at: string, episode_count: int, season_number: ?int, episode_number: ?int}>}
      */
     public function warm(): array
     {
@@ -130,7 +160,7 @@ class UpNextCache
     }
 
     /**
-     * @return array{continue_watching: array<int, array{title_id: int, episode_id: int}>, airing_this_week: array<int, int>, recently_watchlisted: array<int, int>}
+     * @return array{continue_watching: array<int, array{title_id: int, episode_id: int}>, airing_this_week: array<int, int>, recently_added: array<int, array{title_id: int, added_at: string, episode_count: int, season_number: ?int, episode_number: ?int}>}
      */
     private function entries(): array
     {
@@ -138,7 +168,7 @@ class UpNextCache
     }
 
     /**
-     * @return array{continue_watching: array<int, array{title_id: int, episode_id: int}>, airing_this_week: array<int, int>, recently_watchlisted: array<int, int>}
+     * @return array{continue_watching: array<int, array{title_id: int, episode_id: int}>, airing_this_week: array<int, int>, recently_added: array<int, array{title_id: int, added_at: string, episode_count: int, season_number: ?int, episode_number: ?int}>}
      */
     private function compute(): array
     {
@@ -151,7 +181,7 @@ class UpNextCache
                 ->values()
                 ->all(),
             'airing_this_week' => $this->airingThisWeekQuery->get()->pluck('id')->all(),
-            'recently_watchlisted' => $this->recentlyWatchlistedQuery->get()->pluck('id')->all(),
+            'recently_added' => $this->recentlyAddedQuery->get()->all(),
         ];
     }
 

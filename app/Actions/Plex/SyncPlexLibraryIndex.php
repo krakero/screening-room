@@ -6,6 +6,7 @@ use App\Models\PlexLibraryEpisode;
 use App\Models\PlexLibraryItem;
 use App\Models\Title;
 use App\Services\Plex\PlexClient;
+use App\Services\Watch\WatchCacheVersion;
 use App\Support\IntegrationSettings;
 use Closure;
 use Illuminate\Support\Carbon;
@@ -35,6 +36,7 @@ class SyncPlexLibraryIndex
         private readonly PlexClient $client,
         private readonly ResolvePlexAvailability $resolver,
         private readonly IntegrationSettings $settings,
+        private readonly WatchCacheVersion $watchCacheVersion,
     ) {}
 
     /**
@@ -85,6 +87,8 @@ class SyncPlexLibraryIndex
                 $titlesRefreshed++;
             }
         });
+
+        $this->watchCacheVersion->bump();
 
         return [
             'sections' => count($sections),
@@ -197,6 +201,7 @@ class SyncPlexLibraryIndex
                 'tvdb_id' => $guids['tvdb'] ?? null,
                 'section_key' => $sectionKey,
                 'indexed_at' => $syncedAt,
+                'added_at' => isset($item['addedAt']) ? Carbon::createFromTimestamp((int) $item['addedAt']) : null,
             ],
         );
 
@@ -227,6 +232,7 @@ class SyncPlexLibraryIndex
                 [
                     'plex_rating_key' => $episode['rating_key'],
                     'indexed_at' => $syncedAt,
+                    'added_at' => $episode['added_at'],
                 ],
             );
         }

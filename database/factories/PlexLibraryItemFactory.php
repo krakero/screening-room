@@ -26,6 +26,7 @@ class PlexLibraryItemFactory extends Factory
             'tvdb_id' => null,
             'section_key' => '1',
             'indexed_at' => now(),
+            'added_at' => null,
         ];
     }
 

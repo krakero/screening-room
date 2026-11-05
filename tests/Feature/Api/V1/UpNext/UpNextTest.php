@@ -3,13 +3,14 @@
 use App\Enums\FollowState;
 use App\Models\Episode;
 use App\Models\Follow;
-use App\Models\MediaList;
-use App\Models\MediaListItem;
 use App\Models\Play;
+use App\Models\PlexLibraryEpisode;
+use App\Models\PlexLibraryItem;
 use App\Models\Season;
 use App\Models\Title;
 use App\Models\User;
 use App\Support\DisplayTimezone;
+use App\Support\IntegrationSettings;
 use Illuminate\Support\Facades\DB;
 
 function upNextUser(): User
@@ -101,20 +102,66 @@ test('up-next airing this week groups episodes by local day and hides paused/aba
     expect($allEpisodeIds)->toHaveCount(1);
 });
 
-test('up-next recently added lists only watchlist titles', function () {
+test('up-next recently added lists only Plex-added titles within 14 days', function () {
     $user = upNextUser();
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local', 'plex.token' => 'tok']);
 
-    $watchlisted = Title::factory()->movie()->create(['name' => 'Watchlisted Movie']);
-    MediaListItem::factory()->create(['media_list_id' => MediaList::watchlist()->id, 'title_id' => $watchlisted->id]);
-    $other = Title::factory()->movie()->create(['name' => 'Other Movie']);
+    $recent = Title::factory()->movie()->create(['name' => 'Recent Movie', 'tmdb_id' => 11111]);
+    PlexLibraryItem::factory()->create(['type' => 'movie', 'tmdb_id' => 11111, 'added_at' => now()->subDays(5)]);
+
+    $old = Title::factory()->movie()->create(['name' => 'Old Movie', 'tmdb_id' => 22222]);
+    PlexLibraryItem::factory()->create(['type' => 'movie', 'tmdb_id' => 22222, 'added_at' => now()->subDays(20)]);
+
+    $unlinked = Title::factory()->movie()->create(['name' => 'Not On Plex', 'tmdb_id' => 33333]);
 
     $response = $this->actingAs($user, 'sanctum')->getJson('/api/v1/up-next');
 
     $response->assertOk();
     $ids = collect($response->json('recently_added'))->pluck('id');
 
-    expect($ids)->toContain($watchlisted->id);
-    expect($ids)->not->toContain($other->id);
+    expect($ids)->toContain($recent->id);
+    expect($ids)->not->toContain($old->id);
+    expect($ids)->not->toContain($unlinked->id);
+});
+
+test('up-next recently added includes plex_available, added_at, episode fields and label', function () {
+    $user = upNextUser();
+    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local', 'plex.token' => 'tok']);
+
+    $show = Title::factory()->show()->create(['tmdb_id' => 44444]);
+    $item = PlexLibraryItem::factory()->show()->create(['tmdb_id' => 44444, 'added_at' => now()->subDays(2)]);
+    PlexLibraryEpisode::factory()->create([
+        'show_rating_key' => $item->plex_rating_key,
+        'machine_identifier' => $item->machine_identifier,
+        'season_number' => 3,
+        'episode_number' => 7,
+        'added_at' => now()->subDays(2),
+    ]);
+
+    $response = $this->actingAs($user, 'sanctum')->getJson('/api/v1/up-next');
+
+    $response->assertOk();
+    $entry = collect($response->json('recently_added'))->firstWhere('id', $show->id);
+
+    expect($entry)->not->toBeNull();
+    expect($entry['plex_available'])->toBeTrue();
+    expect($entry['episode_count'])->toBe(1);
+    expect($entry['season_number'])->toBe(3);
+    expect($entry['episode_number'])->toBe(7);
+    expect($entry['label'])->toBe('S3 E7');
+    expect($entry['added_at'])->toBeString();
+});
+
+test('up-next recently added is empty when Plex is not configured', function () {
+    $user = upNextUser();
+
+    Title::factory()->movie()->create(['tmdb_id' => 55551]);
+    PlexLibraryItem::factory()->create(['type' => 'movie', 'tmdb_id' => 55551, 'added_at' => now()->subDays(1)]);
+
+    $response = $this->actingAs($user, 'sanctum')->getJson('/api/v1/up-next');
+
+    $response->assertOk();
+    expect($response->json('recently_added'))->toBeEmpty();
 });
 
 test('up-next runs a bounded number of queries', function () {

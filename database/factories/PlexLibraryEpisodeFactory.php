@@ -24,6 +24,7 @@ class PlexLibraryEpisodeFactory extends Factory
             'episode_number' => fake()->unique()->numberBetween(1, 9999),
             'plex_rating_key' => (string) fake()->unique()->numberBetween(10000, 99999),
             'indexed_at' => now(),
+            'added_at' => null,
         ];
     }
 }

@@ -24,10 +24,11 @@ use Illuminate\Support\Carbon;
  * @property int|null $tvdb_id
  * @property string|null $section_key
  * @property Carbon $indexed_at
+ * @property Carbon|null $added_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['plex_rating_key', 'machine_identifier', 'type', 'tmdb_id', 'imdb_id', 'tvdb_id', 'section_key', 'indexed_at'])]
+#[Fillable(['plex_rating_key', 'machine_identifier', 'type', 'tmdb_id', 'imdb_id', 'tvdb_id', 'section_key', 'indexed_at', 'added_at'])]
 class PlexLibraryItem extends Model
 {
     /** @use HasFactory<PlexLibraryItemFactory> */
@@ -41,6 +42,7 @@ class PlexLibraryItem extends Model
         return [
             'type' => TitleType::class,
             'indexed_at' => 'datetime',
+            'added_at' => 'datetime',
         ];
     }
 }

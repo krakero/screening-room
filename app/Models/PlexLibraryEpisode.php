@@ -22,10 +22,11 @@ use Illuminate\Support\Carbon;
  * @property int $episode_number
  * @property string $plex_rating_key
  * @property Carbon $indexed_at
+ * @property Carbon|null $added_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['show_rating_key', 'machine_identifier', 'season_number', 'episode_number', 'plex_rating_key', 'indexed_at'])]
+#[Fillable(['show_rating_key', 'machine_identifier', 'season_number', 'episode_number', 'plex_rating_key', 'indexed_at', 'added_at'])]
 class PlexLibraryEpisode extends Model
 {
     /** @use HasFactory<PlexLibraryEpisodeFactory> */
@@ -38,6 +39,7 @@ class PlexLibraryEpisode extends Model
     {
         return [
             'indexed_at' => 'datetime',
+            'added_at' => 'datetime',
         ];
     }
 }

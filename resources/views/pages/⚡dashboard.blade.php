@@ -4,9 +4,7 @@ use App\Actions\Plays\LogPlay;
 use App\Enums\WatchedAt;
 use App\Livewire\Concerns\HasCustomWatchedAt;
 use App\Models\Episode;
-use App\Models\MediaList;
 use App\Models\Title;
-use App\Services\Collection\Ownership;
 use App\Services\ShowProgressData;
 use App\Services\UpNext\UpNextCache;
 use App\Support\CustomWatchedAtTrigger;
@@ -70,18 +68,12 @@ new #[PageTitle('Up Next')] class extends Component
     }
 
     /**
-     * @return Collection<int, Title>
+     * @return Collection<int, array{title: Title, added_at: \Carbon\CarbonImmutable, episode_count: int, season_number: ?int, episode_number: ?int, label: ?string}>
      */
     #[Computed]
-    public function recentlyWatchlisted(): Collection
+    public function recentlyAdded(): Collection
     {
-        return app(UpNextCache::class)->recentlyWatchlisted();
-    }
-
-    #[Computed]
-    public function watchlist(): ?MediaList
-    {
-        return MediaList::query()->where('is_watchlist', true)->first();
+        return app(UpNextCache::class)->recentlyAdded();
     }
 
     /**
@@ -104,13 +96,7 @@ new #[PageTitle('Up Next')] class extends Component
     {
         return $this->continueWatching->isEmpty()
             && $this->airingThisWeek->isEmpty()
-            && $this->recentlyWatchlisted->isEmpty();
-    }
-
-    #[Computed]
-    public function ownershipSummaries(): array
-    {
-        return app(Ownership::class)->forTitles($this->recentlyWatchlisted);
+            && $this->recentlyAdded->isEmpty();
     }
 
     public function markWatched(int $episodeId, string $when = 'now'): void
@@ -242,25 +228,23 @@ new #[PageTitle('Up Next')] class extends Component
             </x-media.poster-row>
         @endif
 
-        @if ($this->recentlyWatchlisted->isNotEmpty())
-            <x-media.poster-row :heading="__('Recently Added to Watchlist')" :href="$this->watchlist ? route('lists.show', $this->watchlist) : null">
-                @foreach ($this->recentlyWatchlisted as $recentTitle)
-                    @php($summary = $this->ownershipSummaries[$recentTitle->id] ?? null)
-
+        @if ($this->recentlyAdded->isNotEmpty())
+            <x-media.poster-row :heading="__('Recently Added to Plex')" :subheading="__('New on your Plex server in the last two weeks')">
+                @foreach ($this->recentlyAdded as $entry)
                     <x-media.poster-card
                         size="sm"
                         class="!w-40 sm:!w-44"
-                        :image="$recentTitle->posterUrl('w342')"
-                        :name="$recentTitle->name"
-                        :subtitle="$recentTitle->isMovie() ? __('Movie') : __('Show')"
-                        :href="route('titles.show', $recentTitle)"
-                        :type="$recentTitle->type->value"
-                        :plex-available="$this->plexConfigured && ($recentTitle->plexItem?->found() ?? false)"
-                        wire:key="watchlisted-{{ $recentTitle->id }}"
+                        :image="$entry['title']->posterUrl('w342')"
+                        :name="$entry['title']->name"
+                        :subtitle="$entry['title']->isMovie() ? __('Movie') : __('Show')"
+                        :href="route('titles.show', $entry['title'])"
+                        :type="$entry['title']->type->value"
+                        :plex-available="true"
+                        wire:key="recently-added-{{ $entry['title']->id }}"
                     >
-                        @if ($summary && $summary->isOwned())
+                        @if ($entry['label'] !== null)
                             <x-slot:badge>
-                                <x-media.owned-badge :summary="$summary" />
+                                <x-media.badge tone="neutral" variant="solid">{{ $entry['label'] }}</x-media.badge>
                             </x-slot:badge>
                         @endif
                     </x-media.poster-card>

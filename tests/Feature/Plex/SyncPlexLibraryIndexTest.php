@@ -6,6 +6,7 @@ use App\Models\PlexLibraryEpisode;
 use App\Models\PlexLibraryItem;
 use App\Models\Title;
 use App\Services\Plex\PlexException;
+use App\Services\Watch\WatchCacheVersion;
 use App\Support\IntegrationSettings;
 use Illuminate\Support\Facades\Http;
 
@@ -327,4 +328,46 @@ test('it refreshes every Title’s cached plex_items row from the freshly synced
 
     expect($result['titles_refreshed'])->toBe(1)
         ->and($title->plexItem()->first()->rating_key)->toBe('12345');
+});
+
+test('it stores added_at from the Plex addedAt field for items and episodes', function () {
+    Http::fake([
+        '*plex.local:32400/identity*' => Http::response(libraryIndexFixture('identity')),
+        '*plex.local:32400/library/sections' => Http::response(['MediaContainer' => ['Directory' => [
+            ['key' => '2', 'type' => 'show', 'title' => 'TV Shows'],
+        ]]]),
+        '*plex.local:32400/library/sections/2/all*' => Http::response(libraryIndexFixture('library_section_shows')),
+        '*plex.local:32400/library/metadata/54321/allLeaves*' => Http::response(libraryIndexFixture('all_leaves_show')),
+    ]);
+
+    app(SyncPlexLibraryIndex::class)->handle();
+
+    $show = PlexLibraryItem::query()->where('plex_rating_key', '54321')->first();
+    expect($show->added_at)->not->toBeNull()
+        ->and($show->added_at->timestamp)->toBe(1700000200);
+
+    $episode = PlexLibraryEpisode::query()
+        ->where('show_rating_key', '54321')
+        ->where('season_number', 1)
+        ->where('episode_number', 1)
+        ->first();
+    expect($episode->added_at)->not->toBeNull()
+        ->and($episode->added_at->timestamp)->toBe(1700000300);
+});
+
+test('it bumps the watch cache version after a successful sync', function () {
+    Http::fake([
+        '*plex.local:32400/identity*' => Http::response(libraryIndexFixture('identity')),
+        '*plex.local:32400/library/sections' => Http::response(['MediaContainer' => ['Directory' => [
+            ['key' => '1', 'type' => 'movie', 'title' => 'Movies'],
+        ]]]),
+        '*plex.local:32400/library/sections/1/all*' => Http::response(libraryIndexFixture('library_section_movies')),
+    ]);
+
+    $version = app(WatchCacheVersion::class);
+    $before = $version->current();
+
+    app(SyncPlexLibraryIndex::class)->handle();
+
+    expect($version->current())->toBe($before + 1);
 });

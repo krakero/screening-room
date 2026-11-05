@@ -15,6 +15,7 @@
         "type": "movie",
         "title": "57 Seconds",
         "year": 2023,
+        "addedAt": 1700000100,
         "Guid": [
           {"id": "imdb://tt13157592"},
           {"id": "tmdb://937249"}

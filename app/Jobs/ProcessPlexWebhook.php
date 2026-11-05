@@ -6,6 +6,7 @@ use App\Actions\Plex\RecordScrobble;
 use App\Actions\Plex\UpsertPlexAvailabilityFromWebhook;
 use App\Models\WebhookEvent;
 use App\Services\Plex\PlexClient;
+use App\Services\Watch\WatchCacheVersion;
 use App\Support\IntegrationSettings;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -25,6 +26,7 @@ class ProcessPlexWebhook implements ShouldQueue
         RecordScrobble $recordScrobble,
         UpsertPlexAvailabilityFromWebhook $upsertPlexAvailability,
         IntegrationSettings $settings,
+        WatchCacheVersion $watchCacheVersion,
     ): void {
         $payload = $this->webhookEvent->payload;
         $event = $payload['event'] ?? null;
@@ -53,6 +55,9 @@ class ProcessPlexWebhook implements ShouldQueue
             // media.on-deck, …) tells us this item is on Plex right now — cache that against the
             // matching local Title/Episode straight from the payload, no extra API call needed.
             if (isset($metadata['ratingKey']) && in_array($type, ['movie', 'episode'], true)) {
+                $addedAt = isset($metadata['addedAt']) ? Carbon::createFromTimestamp((int) $metadata['addedAt']) : null;
+                $showRatingKey = isset($metadata['grandparentRatingKey']) ? (string) $metadata['grandparentRatingKey'] : null;
+
                 $upsertPlexAvailability->handle(
                     $type,
                     (string) $metadata['ratingKey'],
@@ -61,10 +66,16 @@ class ProcessPlexWebhook implements ShouldQueue
                     $parsed['show_guids'],
                     $metadata['parentIndex'] ?? $parsed['season_number'],
                     $metadata['index'] ?? $parsed['episode_number'],
+                    $addedAt,
+                    $showRatingKey,
                 );
             }
 
             if ($event !== 'media.scrobble') {
+                if ($event === 'library.new') {
+                    $watchCacheVersion->bump();
+                }
+
                 $this->webhookEvent->markProcessed();
 
                 return;

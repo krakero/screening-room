@@ -4,13 +4,13 @@ use App\Actions\Follows\RestartShow;
 use App\Enums\FollowState;
 use App\Models\Episode;
 use App\Models\Follow;
-use App\Models\MediaList;
-use App\Models\MediaListItem;
 use App\Models\Play;
 use App\Models\Season;
 use App\Models\Title;
 use App\Models\User;
+use App\Services\UpNext\UpNextCache;
 use App\Support\IntegrationSettings;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
@@ -221,75 +221,112 @@ test('airing this week page renders correctly when a paused show has an episode 
     $response->assertDontSee('@if');
 });
 
-function watchlistTitle(Title $title, ?DateTimeInterface $addedAt = null): Title
+function mockCacheForRecentlyAdded(mixed $test, array $entries): void
 {
-    MediaListItem::factory()->create([
-        'media_list_id' => MediaList::watchlist()->id,
-        'title_id' => $title->id,
-        'created_at' => $addedAt ?? now(),
-    ]);
+    $mock = Mockery::mock(UpNextCache::class);
+    $mock->shouldReceive('continueWatching')->andReturn(collect());
+    $mock->shouldReceive('airingThisWeek')->andReturn(collect());
+    $mock->shouldReceive('airingThisWeekByDay')->andReturn(collect());
+    $mock->shouldReceive('plexConfigured')->andReturn(true);
+    $mock->shouldReceive('recentlyAdded')->andReturn(collect($entries));
 
-    return $title;
+    app()->instance(UpNextCache::class, $mock);
 }
 
-test('recently added to watchlist lists watchlist titles newest-added first and skips other titles', function () {
+test('recently added to plex shows the section heading, subheading, and entries in order', function () {
     $this->actingAs(User::factory()->create());
 
-    watchlistTitle(Title::factory()->movie()->create(['name' => 'Older Pick']), now()->subDays(2));
-    watchlistTitle(Title::factory()->movie()->create(['name' => 'Newer Pick']), now()->subDay());
-    Title::factory()->movie()->create(['name' => 'Merely Viewed Movie']);
+    $movie = Title::factory()->movie()->create(['name' => 'Fresh Movie']);
+    $show = Title::factory()->show()->create(['name' => 'Fresh Show']);
+
+    mockCacheForRecentlyAdded($this, [
+        ['title' => $show, 'added_at' => CarbonImmutable::now()->subDay(), 'episode_count' => 2, 'season_number' => null, 'episode_number' => null, 'label' => '2 new episodes'],
+        ['title' => $movie, 'added_at' => CarbonImmutable::now()->subDays(5), 'episode_count' => 0, 'season_number' => null, 'episode_number' => null, 'label' => null],
+    ]);
 
     $response = $this->get(route('dashboard'));
 
     $response->assertOk();
-    $response->assertSee(__('Recently Added to Watchlist'));
-    $response->assertSee(route('lists.show', MediaList::watchlist()), false);
-    $response->assertSeeInOrder(['Newer Pick', 'Older Pick']);
-    $response->assertDontSee('Merely Viewed Movie');
+    $response->assertDontSee('@if');
+    $response->assertSee(__('Recently Added to Plex'));
+    $response->assertSee('New on your Plex server in the last two weeks');
+    $response->assertSeeInOrder(['Fresh Show', 'Fresh Movie']);
 });
 
-test('the recently added to watchlist section is hidden when the watchlist is empty', function () {
+test('the recently added to plex section is hidden when there are no recently added items', function () {
     $this->actingAs(User::factory()->create());
 
-    Title::factory()->movie()->create(['name' => 'Merely Viewed Movie']);
+    mockCacheForRecentlyAdded($this, []);
 
     $this->get(route('dashboard'))
         ->assertOk()
-        ->assertDontSee(__('Recently Added to Watchlist'))
-        ->assertDontSee('Merely Viewed Movie');
+        ->assertDontSee(__('Recently Added to Plex'))
+        ->assertSee(__('Nothing here yet'));
 });
 
-test('recently added to watchlist shows no Plex badge when Plex is not configured', function () {
+test('recently added to plex shows a label badge when non-null', function () {
     $this->actingAs(User::factory()->create());
 
-    $title = watchlistTitle(Title::factory()->movie()->create(['name' => 'Brand New Movie']));
-    $title->plexItem()->create(['rating_key' => '501', 'machine_identifier' => 'abc123', 'checked_at' => now()]);
+    $show = Title::factory()->show()->create(['name' => 'Badge Show']);
+
+    mockCacheForRecentlyAdded($this, [
+        ['title' => $show, 'added_at' => CarbonImmutable::now()->subDay(), 'episode_count' => 3, 'season_number' => null, 'episode_number' => null, 'label' => '3 new episodes'],
+    ]);
 
     $response = $this->get(route('dashboard'));
 
     $response->assertOk();
     $response->assertDontSee('@if');
-    $response->assertDontSee(__('Available on Plex'), false);
+    $response->assertSee('3 new episodes');
 });
 
-test('recently added to watchlist shows a Plex badge for a title cached as found, and not for one cached as missing', function () {
+test('recently added to plex does not show a label badge for movies', function () {
     $this->actingAs(User::factory()->create());
 
-    app(IntegrationSettings::class)->setMany(['plex.url' => 'http://plex.local:32400', 'plex.token' => 'token']);
+    $movie = Title::factory()->movie()->create(['name' => 'No Badge Movie']);
 
-    $onPlex = watchlistTitle(Title::factory()->movie()->create(['name' => 'On Plex Movie']));
-    $onPlex->plexItem()->create(['rating_key' => '501', 'machine_identifier' => 'abc123', 'checked_at' => now()]);
-
-    $notOnPlex = watchlistTitle(Title::factory()->movie()->create(['name' => 'Not On Plex Movie']));
-    $notOnPlex->plexItem()->create(['rating_key' => null, 'machine_identifier' => null, 'checked_at' => now()]);
+    mockCacheForRecentlyAdded($this, [
+        ['title' => $movie, 'added_at' => CarbonImmutable::now()->subDays(3), 'episode_count' => 0, 'season_number' => null, 'episode_number' => null, 'label' => null],
+    ]);
 
     $response = $this->get(route('dashboard'));
 
     $response->assertOk();
     $response->assertDontSee('@if');
-    $response->assertSee('On Plex Movie');
-    $response->assertSee('Not On Plex Movie');
-    expect(substr_count($response->getContent(), __('Available on Plex')))->toBe(1);
+    $response->assertSee('No Badge Movie');
+    $response->assertDontSee('new episodes');
+});
+
+test('recently added to plex always shows the plex badge on each card', function () {
+    $this->actingAs(User::factory()->create());
+
+    $movie = Title::factory()->movie()->create(['name' => 'Plex Listed Movie']);
+
+    mockCacheForRecentlyAdded($this, [
+        ['title' => $movie, 'added_at' => CarbonImmutable::now()->subDay(), 'episode_count' => 0, 'season_number' => null, 'episode_number' => null, 'label' => null],
+    ]);
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertOk();
+    $response->assertDontSee('@if');
+    $response->assertSee(__('Available on Plex'), false);
+});
+
+test('recently added to plex each poster links to the title page', function () {
+    $this->actingAs(User::factory()->create());
+
+    $movie = Title::factory()->movie()->create(['name' => 'Linked Movie']);
+
+    mockCacheForRecentlyAdded($this, [
+        ['title' => $movie, 'added_at' => CarbonImmutable::now()->subDay(), 'episode_count' => 0, 'season_number' => null, 'episode_number' => null, 'label' => null],
+    ]);
+
+    $response = $this->get(route('dashboard'));
+
+    $response->assertOk();
+    $response->assertDontSee('@if');
+    $response->assertSee(route('titles.show', $movie), false);
 });
 
 test('a paused show appears on no Up Next shelf', function () {

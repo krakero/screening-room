@@ -7,10 +7,12 @@ use App\Jobs\ProcessPlexWebhook;
 use App\Models\Episode;
 use App\Models\Play;
 use App\Models\PlexItem;
+use App\Models\PlexLibraryEpisode;
 use App\Models\Season;
 use App\Models\Title;
 use App\Models\WebhookEvent;
 use App\Services\Plex\PlexClient;
+use App\Services\Watch\WatchCacheVersion;
 use App\Support\IntegrationSettings;
 use Illuminate\Support\Facades\Http;
 
@@ -27,7 +29,7 @@ function processWebhook(array $payload): WebhookEvent
         'payload' => $payload,
     ]);
 
-    (new ProcessPlexWebhook($webhookEvent))->handle(app(PlexClient::class), app(RecordScrobble::class), app(UpsertPlexAvailabilityFromWebhook::class), app(IntegrationSettings::class));
+    (new ProcessPlexWebhook($webhookEvent))->handle(app(PlexClient::class), app(RecordScrobble::class), app(UpsertPlexAvailabilityFromWebhook::class), app(IntegrationSettings::class), app(WatchCacheVersion::class));
 
     return $webhookEvent->refresh();
 }
@@ -236,4 +238,52 @@ test('a library.new event for an item not yet in the library caches nothing and 
 
     expect(PlexItem::count())->toBe(0)
         ->and($webhookEvent->processed_at)->not->toBeNull();
+});
+
+test('a library.new episode webhook stores added_at and indexes the episode row', function () {
+    Http::preventStrayRequests();
+
+    $show = Title::factory()->create(['type' => TitleType::Show, 'tmdb_id' => 1399]);
+    $season = Season::factory()->for($show, 'title')->create(['season_number' => 1]);
+    $episode = Episode::factory()->for($show, 'title')->for($season, 'season')->create([
+        'tmdb_id' => 63056,
+        'season_number' => 1,
+        'episode_number' => 1,
+    ]);
+
+    processWebhook(plexWebhookFixture('webhook_library_new_episode'));
+
+    $libraryEpisode = PlexLibraryEpisode::query()
+        ->where('show_rating_key', '800')
+        ->where('season_number', 1)
+        ->where('episode_number', 1)
+        ->first();
+
+    expect($libraryEpisode)->not->toBeNull()
+        ->and($libraryEpisode->plex_rating_key)->toBe('901')
+        ->and($libraryEpisode->added_at)->not->toBeNull()
+        ->and($libraryEpisode->added_at->timestamp)->toBe(1700000600);
+});
+
+test('a library.new event bumps the watch cache version', function () {
+    Http::preventStrayRequests();
+
+    $version = app(WatchCacheVersion::class);
+    $before = $version->current();
+
+    processWebhook(plexWebhookFixture('webhook_library_new_episode'));
+
+    expect($version->current())->toBe($before + 1);
+});
+
+test('a non-library.new event does not bump the watch cache version on its own', function () {
+    Http::preventStrayRequests();
+
+    $version = app(WatchCacheVersion::class);
+    $before = $version->current();
+
+    // media.play carries no Metadata, so no upsert or play recording — only the version check matters.
+    processWebhook(['event' => 'media.pause']);
+
+    expect($version->current())->toBe($before);
 });
