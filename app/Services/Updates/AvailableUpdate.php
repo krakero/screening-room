@@ -12,23 +12,30 @@ readonly class AvailableUpdate
         public string $url,
         public string $published_at,
         public UpdateChannel $channel,
+        public ?string $commit = null,
     ) {}
 
     /**
      * Plain-array form for caching: the cache refuses to unserialize objects
      * (`cache.serializable_classes` is false), so only scalars may be stored.
      *
-     * @return array{version: string, summary: string, url: string, published_at: string, channel: string}
+     * @return array{version: string, summary: string, url: string, published_at: string, channel: string, commit?: string}
      */
     public function toArray(): array
     {
-        return [
+        $data = [
             'version' => $this->version,
             'summary' => $this->summary,
             'url' => $this->url,
             'published_at' => $this->published_at,
             'channel' => $this->channel->value,
         ];
+
+        if ($this->commit !== null) {
+            $data['commit'] = $this->commit;
+        }
+
+        return $data;
     }
 
     /**
@@ -56,6 +63,7 @@ readonly class AvailableUpdate
             url: $data['url'],
             published_at: $data['published_at'],
             channel: $channel,
+            commit: isset($data['commit']) && is_string($data['commit']) ? $data['commit'] : null,
         );
     }
 }
