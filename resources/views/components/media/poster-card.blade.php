@@ -31,12 +31,12 @@
 
     $statusConfig = match ($status) {
         'available' => ['label' => __('Available'), 'icon' => 'check-circle', 'tone' => 'success'],
-        'requested' => ['label' => __('Requested'), 'icon' => 'clock', 'tone' => 'neutral', 'class' => '!bg-status-requested/15 !text-status-requested'],
+        'requested' => ['label' => __('Requested'), 'icon' => 'clock', 'tone' => 'neutral', 'class' => '!bg-status-requested !text-white dark:!text-teal-950 !ring-0'],
         'pending' => ['label' => __('Pending'), 'icon' => 'clock', 'tone' => 'warning'],
         'downloading' => ['label' => __('Downloading'), 'icon' => 'arrow-down-tray', 'tone' => 'info'],
         'watched' => ['label' => __('Watched'), 'icon' => 'check-circle', 'tone' => 'accent'],
-        'abandoned' => ['label' => __('Abandoned'), 'icon' => 'eye-slash', 'tone' => 'neutral', 'class' => '!bg-status-abandoned/15 !text-status-abandoned'],
-        'paused' => ['label' => __('Paused'), 'icon' => 'pause-circle', 'tone' => 'neutral', 'class' => '!bg-status-paused/15 !text-status-paused'],
+        'abandoned' => ['label' => __('Abandoned'), 'icon' => 'eye-slash', 'tone' => 'neutral', 'class' => '!bg-status-abandoned !text-white !ring-0'],
+        'paused' => ['label' => __('Paused'), 'icon' => 'pause-circle', 'tone' => 'neutral', 'class' => '!bg-status-paused !text-white !ring-0'],
         default => null,
     };
 @endphp
@@ -57,7 +57,7 @@
         @if ($statusConfig || isset($badge) || $plexAvailable)
             <div class="absolute left-1.5 top-1.5 flex flex-col items-start gap-1">
                 @if ($statusConfig)
-                    <x-media.badge :tone="$statusConfig['tone']" :icon="$statusConfig['icon']" :class="$statusConfig['class'] ?? ''">
+                    <x-media.badge :tone="$statusConfig['tone']" variant="solid" :icon="$statusConfig['icon']" :class="$statusConfig['class'] ?? ''">
                         {{ $statusConfig['label'] }}
                     </x-media.badge>
                 @endif

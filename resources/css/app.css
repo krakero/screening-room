@@ -38,7 +38,7 @@
 
     /* Status tokens: availability/request/download/watch state on posters and badges. */
     --color-status-available: #16a34a;
-    --color-status-requested: #7c3aed;
+    --color-status-requested: #0d9488;
     --color-status-pending: #d97706;
     --color-status-downloading: #0284c7;
     --color-status-watched: var(--color-accent);
@@ -66,7 +66,7 @@
         --color-accent-foreground: #1c1207;
 
         --color-status-available: #22c55e;
-        --color-status-requested: #a78bfa;
+        --color-status-requested: #2dd4bf;
         --color-status-pending: #fbbf24;
         --color-status-downloading: #38bdf8;
         --color-status-watched: var(--color-accent);
