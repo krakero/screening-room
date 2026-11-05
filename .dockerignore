@@ -20,3 +20,4 @@ design
 .env
 .env.*
 docker/composer-auth.json
+mobile
