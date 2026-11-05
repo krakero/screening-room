@@ -28,6 +28,18 @@ test('page renders with current version', function () {
         ->assertSee('abc');
 });
 
+test('update channel radio labels and descriptions render', function () {
+    mockAppVersion('1.0.0', UpdateChannel::Stable, 'abc123');
+    mockUpdaterAvailable(true);
+    mockNoUpdateAvailable();
+
+    Livewire::test('pages::settings.updates')
+        ->assertSee('Stable')
+        ->assertSee('Recommended. Stable releases tested for production use.')
+        ->assertSee('Develop')
+        ->assertSee('Latest features from the main branch. May be unstable.');
+});
+
 test('page shows manual update instructions when updater is not available', function () {
     mockAppVersion('1.0.0', UpdateChannel::Stable);
     mockUpdaterAvailable(false);

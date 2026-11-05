@@ -308,10 +308,9 @@ new #[Title('Updates')] class extends Component
                                 :checked="$this->currentVersion['channel'] === UpdateChannel::Stable"
                                 wire:click="confirmChannelSwitch('stable')"
                                 :disabled="! $this->updaterAvailable"
-                            >
-                                <flux:label>{{ __('Stable') }}</flux:label>
-                                <flux:description>{{ __('Recommended. Stable releases tested for production use.') }}</flux:description>
-                            </flux:radio>
+                                :label="__('Stable')"
+                                :description="__('Recommended. Stable releases tested for production use.')"
+                            />
 
                             <flux:radio
                                 name="channel"
@@ -319,10 +318,9 @@ new #[Title('Updates')] class extends Component
                                 :checked="$this->currentVersion['channel'] === UpdateChannel::Develop"
                                 wire:click="confirmChannelSwitch('develop')"
                                 :disabled="! $this->updaterAvailable"
-                            >
-                                <flux:label>{{ __('Develop') }}</flux:label>
-                                <flux:description>{{ __('Latest features from the main branch. May be unstable.') }}</flux:description>
-                            </flux:radio>
+                                :label="__('Develop')"
+                                :description="__('Latest features from the main branch. May be unstable.')"
+                            />
                         </flux:radio.group>
                     </div>
                 </div>
