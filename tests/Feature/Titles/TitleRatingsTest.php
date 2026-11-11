@@ -89,7 +89,7 @@ test('a not-found title is recorded and not re-requested within 7 days', functio
 });
 
 test('no rating badges render when the title has no external ratings', function () {
-    $title = Title::factory()->movie()->create(['ratings_checked_at' => now()]);
+    $title = Title::factory()->movie()->create(['ratings_checked_at' => now(), 'imdb_id' => null]);
 
     $response = $this->get(route('titles.show', $title));
 

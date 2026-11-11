@@ -823,8 +823,50 @@ new #[Layout('layouts::app', ['fullBleed' => true])] class extends Component
     </div>
 
     <x-page-container class="flex flex-col gap-10 pt-8">
-        @if ($title->overview)
-            <p class="max-w-3xl text-sm leading-relaxed text-ink-muted">{{ $title->overview }}</p>
+        @php
+            $hasDetails = $title->isMovie() && ($title->release_date || $title->certification || $title->director || $title->imdb_id);
+        @endphp
+        @if ($title->overview || $hasDetails)
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+                @if ($title->overview)
+                    <p class="max-w-3xl flex-1 text-sm leading-relaxed text-ink-muted">{{ $title->overview }}</p>
+                @endif
+                @if ($hasDetails)
+                    <dl class="grid w-full shrink-0 grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 self-start rounded-lg bg-surface px-4 py-3 text-sm ring-1 ring-line sm:w-64">
+                        @if ($title->release_date)
+                            <div class="contents">
+                                <dt class="text-ink-subtle">{{ __('Released') }}</dt>
+                                <dd class="min-w-0 text-ink">{{ $title->release_date->format('M j, Y') }}</dd>
+                            </div>
+                        @endif
+                        @if ($title->certification)
+                            <div class="contents">
+                                <dt class="text-ink-subtle">{{ __('Rated') }}</dt>
+                                <dd class="min-w-0 text-ink">{{ $title->certification }}</dd>
+                            </div>
+                        @endif
+                        @if ($title->director)
+                            <div class="contents">
+                                <dt class="text-ink-subtle">{{ __('Director') }}</dt>
+                                <dd class="min-w-0 text-ink">{{ $title->director }}</dd>
+                            </div>
+                        @endif
+                        @if ($title->imdb_id)
+                            <div class="contents">
+                                <dt class="text-ink-subtle">{{ __('Links') }}</dt>
+                                <dd>
+                                    <a
+                                        href="https://www.imdb.com/title/{{ $title->imdb_id }}/"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="w-fit text-ink hover:underline"
+                                    >{{ __('IMDb ↗') }}</a>
+                                </dd>
+                            </div>
+                        @endif
+                    </dl>
+                @endif
+            </div>
         @endif
 
         @if ($this->rating?->review)

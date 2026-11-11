@@ -38,6 +38,8 @@ class ImportMovie
                     'tagline' => $data['tagline'] ?? null,
                     'overview' => $data['overview'] ?? null,
                     'status' => $data['status'] ?? null,
+                    'certification' => $this->parseCertification($data),
+                    'director' => $this->parseDirector($data),
                     'in_production' => false,
                     'release_date' => $this->nullableDate($data['release_date'] ?? null),
                     'last_air_date' => null,
@@ -58,6 +60,42 @@ class ImportMovie
 
             return $title;
         }, 3);
+    }
+
+    private function parseDirector(array $data): ?string
+    {
+        $crew = $this->arrayOfArrays($data['credits']['crew'] ?? []);
+
+        $names = collect($crew)
+            ->filter(fn (array $member): bool => ($member['job'] ?? '') === 'Director')
+            ->pluck('name')
+            ->filter()
+            ->values();
+
+        return $names->isNotEmpty() ? $names->implode(', ') : null;
+    }
+
+    private function parseCertification(array $data): ?string
+    {
+        $region = $this->tmdb->region();
+        $results = collect($this->arrayOfArrays($data['release_dates']['results'] ?? []));
+
+        $forRegion = $results->firstWhere('iso_3166_1', $region)
+            ?? $results->firstWhere('iso_3166_1', 'US');
+
+        if (! $forRegion) {
+            return null;
+        }
+
+        $releaseDates = $this->arrayOfArrays($forRegion['release_dates'] ?? []);
+
+        $theatrical = collect($releaseDates)->firstWhere('type', 3);
+        if ($theatrical && ($theatrical['certification'] ?? '') !== '') {
+            return $theatrical['certification'];
+        }
+
+        return collect($releaseDates)
+            ->first(fn (array $r): bool => ($r['certification'] ?? '') !== '')['certification'] ?? null;
     }
 
     private function nullableDate(?string $value): ?string

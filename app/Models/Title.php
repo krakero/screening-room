@@ -33,6 +33,8 @@ use Illuminate\Support\Collection;
  * @property string|null $tagline
  * @property string|null $overview
  * @property string|null $status
+ * @property string|null $certification
+ * @property string|null $director
  * @property bool $in_production
  * @property Carbon|null $release_date
  * @property Carbon|null $last_air_date
@@ -51,7 +53,7 @@ use Illuminate\Support\Collection;
  */
 #[Fillable([
     'type', 'tmdb_id', 'imdb_id', 'tvdb_id', 'name', 'original_name', 'original_language',
-    'tagline', 'overview', 'status', 'in_production', 'release_date', 'last_air_date',
+    'tagline', 'overview', 'status', 'certification', 'director', 'in_production', 'release_date', 'last_air_date',
     'runtime', 'genres', 'poster_path', 'backdrop_path', 'tmdb_synced_at', 'ratings_checked_at',
     'trailer_site', 'trailer_key', 'trailer_checked_at', 'watch_providers_checked_at',
 ])]

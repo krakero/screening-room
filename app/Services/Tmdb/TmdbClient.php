@@ -76,7 +76,7 @@ class TmdbClient
     public function movie(int $tmdbId): array
     {
         return $this->get("/movie/{$tmdbId}", [
-            'append_to_response' => 'credits,external_ids,videos,watch/providers',
+            'append_to_response' => 'credits,external_ids,videos,watch/providers,release_dates',
             'include_video_language' => $this->includeVideoLanguage(),
         ]);
     }

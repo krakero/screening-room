@@ -54,5 +54,19 @@
     "facebook_id": "TheMatrix",
     "instagram_id": null,
     "twitter_id": null
+  },
+  "release_dates": {
+    "results": [
+      {
+        "iso_3166_1": "US",
+        "release_dates": [
+          {
+            "certification": "R",
+            "type": 3,
+            "release_date": "1999-03-30T00:00:00.000Z"
+          }
+        ]
+      }
+    ]
   }
 }

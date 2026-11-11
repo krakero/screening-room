@@ -29,6 +29,8 @@ class TitleFactory extends Factory
             'tagline' => fake()->sentence(),
             'overview' => fake()->paragraph(),
             'status' => 'Released',
+            'certification' => null,
+            'director' => null,
             'in_production' => false,
             'release_date' => fake()->date(),
             'last_air_date' => null,
