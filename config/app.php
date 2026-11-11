@@ -72,6 +72,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Force HTTPS URLs
+    |--------------------------------------------------------------------------
+    |
+    | Generate every URL (assets, routes, redirects) with https://, regardless
+    | of how the request reached the container. Normally unnecessary: with a
+    | trusted proxy sending X-Forwarded-Proto (see config/trustedproxy.php)
+    | the scheme is detected per request. Turn this on only if your proxy
+    | doesn't send that header. It also forces https:// when you browse the
+    | container directly over plain HTTP (e.g. http://192.168.x.x:7331).
+    |
+    */
+
+    'force_https' => (bool) env('APP_FORCE_HTTPS', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

@@ -17,6 +17,7 @@ use Illuminate\Foundation\DevCommands;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -49,6 +50,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('trakt-import-tmdb', fn () => Limit::perSecond(40));
 
         Date::use(CarbonImmutable::class);
+
+        if (config('app.force_https')) {
+            URL::forceScheme('https');
+        }
 
         Model::preventLazyLoading(! app()->isProduction());
 
