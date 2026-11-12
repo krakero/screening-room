@@ -39,8 +39,11 @@ optional. Common overrides:
 | Key | Default | Notes |
 | --- | --- | --- |
 | `APP_PORT` | `7331` | Host port the `app` service binds |
+| `APP_BIND_ADDRESS` | `0.0.0.0` | Host address for the published app port; use `127.0.0.1` when only a host-based proxy should connect |
 | `APP_URL` | `http://localhost:7331` | Public URL (used for webhook URLs, links) |
 | `APP_KEY` | *(auto-generated)* | Generated on first boot and saved to `/app/storage/app/app.key` if missing |
+| `TRUSTED_PROXIES` | `127.0.0.1,::1` | Comma-separated immediate proxy IPs/CIDRs Laravel may trust for forwarded client IP, port, and scheme |
+| `CADDY_TRUSTED_PROXIES` | `127.0.0.1/32 ::1` | Space-separated immediate proxy IPs/CIDRs Caddy may use to derive `client_ip` in access logs |
 | `DB_DATABASE` | `screening_room` | |
 | `DB_USERNAME` | `screening_room` | |
 | `DB_PASSWORD` | `change-me-screening-room` | App DB user password |
@@ -130,9 +133,10 @@ Same compose file either way — the difference is networking and TLS:
 
 - **Home server**: run behind your existing reverse proxy (e.g. Caddy,
   Traefik, or nginx already on the box) that terminates TLS and forwards to
-  `app`'s published port (`APP_PORT`, default `7331`). Point your router/DNS
-  or a tunnel (e.g. Cloudflare Tunnel, Tailscale) at that proxy — don't
-  expose the `app` port directly to the internet.
+  `app`'s published port (`APP_PORT`, default `7331`). Set
+  `APP_BIND_ADDRESS=127.0.0.1` when that proxy runs on the Docker host. Point
+  your router/DNS or tunnel at the proxy — don't expose the app port directly
+  to the internet.
 - **VPS**: same image, either behind a proxy the same way, or let
   FrankenPHP terminate TLS itself by setting `SERVER_NAME` to your domain
   (`SERVER_NAME=screening-room.example.com`) in `.env` — FrankenPHP/Caddy
@@ -141,6 +145,87 @@ Same compose file either way — the difference is networking and TLS:
 
 Either way, set `APP_URL` to the externally-reachable HTTPS URL — it's used
 to build the Plex webhook URL below and any absolute links.
+
+### Reverse proxy trust
+
+TLS-terminating proxies send the original request details in forwarded
+headers. Screening Room only accepts `X-Forwarded-For`, `X-Forwarded-Port`,
+and `X-Forwarded-Proto` when the request comes from an address listed in
+`TRUSTED_PROXIES`. `X-Forwarded-Host` is deliberately not trusted; set
+`APP_URL` to the public URL instead.
+
+List only the immediate proxy addresses that can reach the published port.
+Do not use `*`, all RFC1918/private ranges, or Tailscale's entire
+`100.64.0.0/10` range as a convenience default. A client that can connect
+from a trusted address can otherwise forge its apparent IP or HTTPS state.
+
+Caddy has a separate trust setting because it parses the client IP used by
+its access log. Set `CADDY_TRUSTED_PROXIES` to the same immediate peers, using
+spaces instead of commas. In this image Caddy serves PHP directly; this
+setting does not replace Laravel's `TRUSTED_PROXIES` check and does not make
+arbitrary forwarded headers safe by itself. Caddy parses forwarded-for chains
+right-to-left so a client-supplied leftmost value cannot override a later
+trusted proxy hop.
+
+For a reverse proxy on another machine, a minimal example is:
+
+```env
+APP_URL=https://screening-room.example.com
+TRUSTED_PROXIES=127.0.0.1,::1,192.0.2.10
+CADDY_TRUSTED_PROXIES="127.0.0.1/32 ::1 192.0.2.10"
+```
+
+Replace `192.0.2.10` with that proxy's actual source address as seen by the
+container. Restrict the published port with a host firewall when the proxy is
+remote.
+
+### Tailscale Serve on the Docker host
+
+Tailscale Serve terminates HTTPS on the host and proxies plain HTTP to the
+published container port. Keep that port on loopback, set the public URL, and
+trust the Docker host address that reaches the container:
+
+1. Start the stack once and obtain the Compose network gateway:
+
+   ```sh
+   docker compose up -d
+   docker network inspect screening-room_default \
+     --format '{{(index .IPAM.Config 0).Gateway}}'
+   ```
+
+   Compose normally prints an address such as `172.18.0.1`. Network names and
+   gateways vary, so use the value from your installation. You can verify it
+   by requesting `http://127.0.0.1:7331/up` and checking the latest Caddy
+   access log's `request.remote_ip` value with `docker compose logs app`.
+
+2. Add the resulting address and your Tailscale URL to `.env`:
+
+   ```env
+   APP_BIND_ADDRESS=127.0.0.1
+   APP_PORT=7331
+   APP_URL=https://your-machine.your-tailnet.ts.net
+   TRUSTED_PROXIES=127.0.0.1,::1,172.18.0.1
+   CADDY_TRUSTED_PROXIES="127.0.0.1/32 ::1 172.18.0.1"
+   ```
+
+   Replace `172.18.0.1` with the address from step 1. The trusted address is
+   the Docker host/bridge peer, not a tailnet client address.
+
+3. Recreate the app with the new environment and enable Serve:
+
+   ```sh
+   docker compose up -d --force-recreate app
+   tailscale serve --bg 7331
+   ```
+
+4. Open the HTTPS URL from `tailscale serve status`. Generated links should
+   use HTTPS, while the app remains reachable from the host at
+   `http://127.0.0.1:7331` for Serve's upstream connection.
+
+If another local process can send requests to the loopback port, it can also
+send forwarded headers from the trusted Docker host address. Only run trusted
+software on the host, and do not widen `APP_BIND_ADDRESS` without also adding
+network-level access controls.
 
 ## Plex webhook URL
 
